@@ -1,0 +1,22 @@
+{
+  "name": "bia-agent-studio",
+  "private": true,
+  "workspaces": [
+    "apps/web"
+  ],
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "dev": "npm run dev --workspace @bia/web",
+    "build": "npm run build --workspace @bia/web",
+    "start": "npm run start --workspace @bia/web",
+    "lint": "npm run lint --workspace @bia/web",
+    "typecheck": "npm run typecheck --workspace @bia/web",
+    "test": "npm run test --workspace @bia/web",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1"
+  }
+}

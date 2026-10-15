@@ -1,0 +1,117 @@
+from datetime import datetime
+from typing import Annotated, Literal
+
+from pydantic import Field, model_validator
+
+from app.catalogs.schemas import Capability, Contract, Identifier, Name, Profile
+
+AgentStatus = Literal["draft", "disabled", "deprecated"]
+
+
+class ModelSelection(Contract):
+    model_id: Identifier | None = None
+    profile: Profile | None = None
+    max_output_tokens: Annotated[int, Field(ge=1, le=1_000_000)] = 1000
+
+    @model_validator(mode="after")
+    def single_selector(self):
+        if (self.model_id is None) == (self.profile is None):
+            raise ValueError("Select exactly one model_id or profile")
+        return self
+
+
+class ExecutionLimits(Contract):
+    max_steps: Annotated[int, Field(ge=1, le=50)] = 6
+    max_tool_calls: Annotated[int, Field(ge=0, le=20)] = 5
+    timeout_seconds: Annotated[int, Field(ge=1, le=120)] = 30
+
+
+class SecurityPolicy(Contract):
+    require_authentication: Literal[True] = True
+    resource_scope: Literal["caller_owned"] = "caller_owned"
+    allow_financial_writes: Literal[False] = False
+
+
+class AgentConfiguration(Contract):
+    api_version: Literal["bia.ai/v1"] = "bia.ai/v1"
+    kind: Literal["AgentConfiguration"] = "AgentConfiguration"
+    objective: Annotated[str, Field(min_length=1, max_length=4000)]
+    instructions: Annotated[str, Field(min_length=1, max_length=12000)]
+    model: ModelSelection
+    tool_ids: Annotated[list[Identifier], Field(max_length=20)] = []
+    required_capabilities: Annotated[list[Capability], Field(max_length=4)] = ["chat"]
+    limits: ExecutionLimits = ExecutionLimits()
+    security: SecurityPolicy = SecurityPolicy()
+
+    @model_validator(mode="after")
+    def unique_references(self):
+        for values in [self.tool_ids, self.required_capabilities]:
+            if len(values) != len(set(values)):
+                raise ValueError("Duplicate references or capabilities")
+        if self.tool_ids and self.limits.max_tool_calls == 0:
+            raise ValueError("Tools require a positive max_tool_calls limit")
+        return self
+
+
+class AgentCreate(Contract):
+    id: Identifier
+    name: Name
+    description: Annotated[str, Field(max_length=4000)] = ""
+    department: Annotated[str, Field(min_length=1, max_length=120)]
+    owner_id: Identifier | None = None
+
+
+class AgentUpdate(Contract):
+    expected_revision: Annotated[int, Field(ge=1)]
+    name: Name
+    description: Annotated[str, Field(max_length=4000)] = ""
+    department: Annotated[str, Field(min_length=1, max_length=120)]
+    owner_id: Identifier
+    status: AgentStatus
+
+
+class AgentRead(Contract):
+    id: str
+    name: str
+    description: str
+    department: str
+    owner_id: str
+    status: AgentStatus
+    revision: int
+    created_at: datetime
+
+
+class VersionCreate(Contract):
+    configuration: AgentConfiguration | None = None
+    source_version: Annotated[int, Field(ge=1)] | None = None
+    expected_source_revision: Annotated[int, Field(ge=1)] | None = None
+
+    @model_validator(mode="after")
+    def choose_source(self):
+        if (self.configuration is None) == (self.source_version is None):
+            raise ValueError("Provide either configuration or source_version")
+        if (self.source_version is None) != (self.expected_source_revision is None):
+            raise ValueError("Cloning requires the source revision")
+        return self
+
+
+class RevisionCheck(Contract):
+    expected_revision: Annotated[int, Field(ge=1)]
+
+
+class VersionUpdate(RevisionCheck):
+    configuration: AgentConfiguration
+
+
+class VersionRead(Contract):
+    agent_id: str
+    number: int
+    source_version: int | None
+    status: Literal["draft", "snapshot"]
+    revision: int
+    model_id: str
+    configuration: AgentConfiguration
+    snapshot: dict | None
+    config_hash: str | None
+    created_by: str
+    created_at: datetime

@@ -1,0 +1,31 @@
+name: Foundation and Agent Management CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  foundation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify complete infrastructure
+        run: make verify
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Verify browser management flow
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npm run test:e2e
+      - name: Show service logs on failure
+        if: failure()
+        run: docker compose logs --no-color --tail=150
+      - name: Stop services
+        if: always()
+        run: docker compose --profile test down --remove-orphans
