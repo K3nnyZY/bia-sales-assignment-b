@@ -1,10 +1,15 @@
 # BIA Agent Studio — Integración local
 
+Para desplegarlo manualmente con Railway CLI, sigue la
+[guía de Railway](docs/railway-deployment.md). Incluye tres servicios, pgvector,
+migraciones y credenciales privadas con vencimiento. El despliegue y las URLs
+remotas todavía no están verificados; no actives identidad demo en producción.
+
 **Verificación local (2026-10-16): comprobaciones funcionales aprobadas.**
-Dashboard con datos reales, 253 pruebas backend, 15 frontend y siete E2E aprobados.
+Dashboard con datos reales, 258 pruebas backend, 15 frontend y siete E2E aprobados.
 Se corrigieron el aislamiento de Knowledge y las dependencias Python vulnerables.
-La entrega pública sigue pendiente: autenticación productiva, validación de
-hosting y versión completa en Git; quedan cinco avisos de tooling npm sin parche
+La entrega pública sigue pendiente: validación de hosting y del flujo remoto;
+se preparó acceso privado con vencimiento, sin SSO/MFA. Quedan cinco avisos de tooling npm sin parche
 publicado compatible. Consulta las [correcciones y resultados](docs/sprint-6-fixes.md),
 la [auditoría final](docs/final-audit.md) y la [guía de demo](docs/final-demo-guide.md).
 
@@ -680,10 +685,13 @@ muestra la indisponibilidad y permite reintentar con **Actualizar estado**.
 
 ## Límites y dependencias
 
-Esta entrega cubre los Sprints 1–6 de alcance local. La autenticación y los grants son una demo
-local explícita, no SSO de producción: el proceso rechaza autenticación demo o
-runtime local con `APP_ENV=production`. Las evaluaciones y publicación son
-locales y usan fixtures explícitos; no hay grader LLM. Los snapshots legacy
+Esta entrega cubre los Sprints 1–6 y preparación para una demo protegida en Railway.
+El modo local conserva sus identidades demo; el modo desplegado requiere
+credenciales privadas con vencimiento y revocación. No hay SSO/MFA: el proceso
+sigue rechazando autenticación demo o runtime local con `APP_ENV=production`.
+El runtime desplegado admite únicamente publicaciones aprobadas, y las
+evaluaciones usan fixtures sintéticos aislados; no hay grader LLM.
+El despliegue y su flujo remoto todavía no se han verificado. Los snapshots legacy
 conservan SQL documental y los snapshots con referencias Knowledge utilizan RAG.
 El flujo determinista no requiere claves de proveedores.
 La ejecución síncrona está acotada, sin workers, colas ni recuperación de

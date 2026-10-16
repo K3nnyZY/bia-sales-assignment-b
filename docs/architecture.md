@@ -31,6 +31,18 @@ tests create an isolated Knowledge collection through the UI, preserving previou
 documents and avoiding assumptions about top-k ranking in a shared corpus.
 This local integration does not add production identity or a public deployment.
 
+**Deployment preparation (2026-10-16):** an optional private access-token mode
+now authenticates operator-issued 256-bit credentials through SHA-256 hashes,
+expiry and revocation in PostgreSQL. Legacy demo tokens remain development-only
+and cannot authenticate in this mode. An explicitly enabled deployment runtime
+admits only the published channel and trusted internal evaluations; preview
+remains local. The same publication gate, resource authorization, StateGraph and
+retrieval pipeline apply. Railway deployment instructions and IaC are prepared;
+no Railway deployment or public URL has been verified. This is a protected
+synthetic demonstration, without corporate SSO/MFA or enterprise hardening. See
+[ADR-014](decisions/ADR-014-protected-deployment.md) and the
+[deployment guide](railway-deployment.md).
+
 ---
 
 # 1. Overview

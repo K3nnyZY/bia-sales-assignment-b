@@ -1,0 +1,15 @@
+.git/
+.env
+.env.*
+.tools/
+.cache/
+.venv/
+**/node_modules/
+**/.next/
+**/__pycache__/
+**/.pytest_cache/
+**/.ruff_cache/
+**/*.tsbuildinfo
+test-results/
+playwright-report/
+*.log

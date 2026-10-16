@@ -5,7 +5,7 @@ test("run billing assistant, inspect persisted trace, and reject cross-customer 
 }) => {
   await page.goto("/playground");
   await page
-    .getByLabel("Token de demostración")
+    .getByLabel("Token de acceso")
     .fill(process.env.DEMO_CREATOR_TOKEN!);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await expect(
@@ -77,7 +77,7 @@ test("run billing assistant, inspect persisted trace, and reject cross-customer 
   ).toBeVisible();
   await page.reload();
   await page
-    .getByLabel("Token de demostración")
+    .getByLabel("Token de acceso")
     .fill(process.env.DEMO_CREATOR_TOKEN!);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await expect(

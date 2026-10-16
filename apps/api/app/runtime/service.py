@@ -29,12 +29,14 @@ def admission(
     *,
     evaluation_id: str | None = None,
 ) -> AgentVersion:
-    if not settings.enable_local_runtime or settings.app_env not in {"development", "test"}:
+    local = settings.enable_local_runtime and settings.app_env in {"development", "test"}
+    published = settings.enable_published_runtime and settings.enable_access_token_auth
+    if not local and not (published and (data.channel == "published" or evaluation_id)):
         raise HTTPException(
             503,
             detail={
                 "code": "RUNTIME_DISABLED",
-                "message": "Only the explicitly enabled local preview runtime is available",
+                "message": "Runtime is disabled or this deployment requires the published channel",
             },
         )
     number = data.version or 1

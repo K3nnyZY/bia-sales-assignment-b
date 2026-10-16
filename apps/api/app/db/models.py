@@ -12,7 +12,7 @@ from app.governance.models import (
     Publication,
     VersionGovernance,
 )
-from app.identity.models import User
+from app.identity.models import AccessToken, User
 from app.knowledge.models import (
     KnowledgeChunk,
     KnowledgeCollection,
@@ -38,6 +38,7 @@ __all__ = [
     "Model",
     "Tool",
     "User",
+    "AccessToken",
     "Invoice",
     "BillingKnowledge",
     "AgentRun",

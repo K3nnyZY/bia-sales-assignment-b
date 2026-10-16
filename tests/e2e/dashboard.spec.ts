@@ -4,7 +4,7 @@ import type { Metrics } from "../../apps/web/src/lib/governance";
 async function login(page: Page, role: "VIEWER" | "CREATOR") {
   await page.goto("/dashboard");
   await page
-    .getByLabel("Token de demostración")
+    .getByLabel("Token de acceso")
     .fill(process.env[`DEMO_${role}_TOKEN`]!);
   const pending = page.waitForResponse(
     (r) => new URL(r.url()).pathname === "/api/studio/metrics",

@@ -127,15 +127,16 @@ function Login() {
   }
   return (
     <section className="panel login">
-      <p className="eyebrow">ACCESO LOCAL DE DEMOSTRACIÓN</p>
+      <p className="eyebrow">ACCESO AUTORIZADO</p>
       <h1>Entra al Studio.</h1>
       <p>
-        Usa un token configurado en tu archivo .env. La identidad y los permisos
-        se verifican en el backend.
+        Usa tu credencial privada proporcionada por el administrador. Los tokens
+        demo del archivo .env solo funcionan en desarrollo local. La identidad,
+        vigencia y permisos se verifican en el backend.
       </p>
       <form onSubmit={submit}>
         <label>
-          Token de demostración
+          Token de acceso
           <input
             type="password"
             value={token}
@@ -175,7 +176,7 @@ export function StudioShell({ children }: { children: ReactNode }) {
       ) : (
         <Login />
       )}
-      <footer>Sprint 5 · Knowledge & RAG · Entorno sintético local</footer>
+      <footer>BIA Agent Studio · Datos sintéticos · Acceso controlado</footer>
     </main>
   );
 }

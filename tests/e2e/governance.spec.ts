@@ -9,7 +9,7 @@ async function login(
 ) {
   await page.goto(path);
   await page
-    .getByLabel("Token de demostración")
+    .getByLabel("Token de acceso")
     .fill(process.env[`DEMO_${role}_TOKEN`]!);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await expect(
@@ -77,7 +77,7 @@ test("configure, evaluate, independently approve, publish, execute and audit", a
   ).toBeDisabled();
   await page.getByRole("button", { name: "Salir", exact: true }).click();
   await page
-    .getByLabel("Token de demostración")
+    .getByLabel("Token de acceso")
     .fill(process.env.DEMO_APPROVER_TOKEN!);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await page.getByLabel("Agente", { exact: true }).selectOption(id);
@@ -175,7 +175,7 @@ test("configure, evaluate, independently approve, publish, execute and audit", a
   ).toBeVisible();
   await page.reload();
   await page
-    .getByLabel("Token de demostración")
+    .getByLabel("Token de acceso")
     .fill(process.env.DEMO_AUDITOR_TOKEN!);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await expect(page.locator(".runtime-answer")).toContainText("64400.00 COP");

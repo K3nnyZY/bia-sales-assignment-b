@@ -6,7 +6,7 @@ const viewer = process.env.DEMO_VIEWER_TOKEN!;
 
 async function login(page: Page, token: string, path = "/agents") {
   await page.goto(path);
-  await page.getByLabel("Token de demostración").fill(token);
+  await page.getByLabel("Token de acceso").fill(token);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Salir", exact: true }),
@@ -118,7 +118,7 @@ test("catalog management requires administrator identity", async ({ page }) => {
   );
   expect(denied.status()).toBe(403);
   await page.getByRole("button", { name: "Salir", exact: true }).click();
-  await page.getByLabel("Token de demostración").fill(admin);
+  await page.getByLabel("Token de acceso").fill(admin);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
   const catalogResponse = await page.request.get(
     "/api/studio/models?approved_only=false",

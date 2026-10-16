@@ -2,9 +2,23 @@
 import { chromium, expect } from "@playwright/test";
 import fs from "node:fs";
 import assert from "node:assert/strict";
-process.loadEnvFile(new URL("../.env", import.meta.url));
-const base = `http://127.0.0.1:${process.env.WEB_PORT || "3000"}`;
-const browser = await chromium.launch({ channel: "chrome", headless: true });
+const privateCredentials = process.env.BIA_CREDENTIALS_FILE
+  ? JSON.parse(fs.readFileSync(process.env.BIA_CREDENTIALS_FILE, "utf8"))
+  : null;
+if (!privateCredentials) process.loadEnvFile(new URL("../.env", import.meta.url));
+function tokenFor(role) {
+  if (privateCredentials) {
+    const key = role === "ADMIN" ? "administrator" : role.toLowerCase();
+    assert.ok(privateCredentials[key]?.token, `Missing private credential for ${key}`);
+    return privateCredentials[key].token;
+  }
+  return process.env[`DEMO_${role}_TOKEN`];
+}
+const base = process.env.E2E_BASE_URL || `http://127.0.0.1:${process.env.WEB_PORT || "3000"}`;
+if (!/^https:\/\//.test(base) && !/^http:\/\/(127\.0\.0\.1|localhost):/.test(base)) {
+  throw new Error("Remote smoke tests require HTTPS");
+}
+const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || "chrome", headless: true });
 const page = await browser.newPage({ baseURL: base });
 page.setDefaultTimeout(15000);
 const id = `final-audit-${Date.now()}`;
@@ -12,8 +26,8 @@ const proof = { agent_id: id, document_id: id, steps: [] };
 async function login(role, path) {
   await page.goto(path);
   await page
-    .getByLabel("Token de demostración")
-    .fill(process.env[`DEMO_${role}_TOKEN`]);
+    .getByLabel("Token de acceso")
+    .fill(tokenFor(role));
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Salir", exact: true }),
@@ -185,7 +199,7 @@ try {
   await expect(
     page.getByRole("cell", { name: "validate_output", exact: true }),
   ).toBeVisible();
-  const headers = { Authorization: "Bearer " + process.env.DEMO_CREATOR_TOKEN };
+  const headers = { Authorization: "Bearer " + tokenFor("CREATOR") };
   const trace = await (
     await page.request.get(`/api/studio/runs/${run.id}/trace`, { headers })
   ).json();

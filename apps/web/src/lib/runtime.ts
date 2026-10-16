@@ -5,7 +5,7 @@ export type ExecutableVersion = {
   model_id: string;
   model_provider: string;
   config_hash: string;
-  local_preview: true;
+  local_preview: boolean;
   published: boolean;
   available_modes: ("deterministic" | "provider")[];
 };

@@ -19,7 +19,9 @@ router = APIRouter(prefix="/api/v1", tags=["runtime"])
 
 @router.get("/runtime/agents", response_model=list[ExecutableVersion])
 def executable_versions(session: DatabaseSession, user: CurrentUser, request: Request):
-    if not request.app.state.settings.enable_local_runtime:
+    settings = request.app.state.settings
+    local = settings.enable_local_runtime and settings.app_env in {"development", "test"}
+    if not local and not settings.enable_published_runtime:
         return []
     rows = session.execute(
         select(Agent, AgentVersion)
@@ -45,7 +47,7 @@ def executable_versions(session: DatabaseSession, user: CurrentUser, request: Re
             "model_id": version.model_id,
             "model_provider": version.snapshot["model"]["provider"],
             "config_hash": version.config_hash,
-            "local_preview": True,
+            "local_preview": local,
             "published": bool(
                 (pointer := session.get(Publication, agent.id))
                 and pointer.enabled
@@ -70,8 +72,18 @@ def executable_versions(session: DatabaseSession, user: CurrentUser, request: Re
             ),
         }
         for agent, version in rows
-        if not (state := session.get(VersionGovernance, (agent.id, version.number)))
-        or state.stage != "disabled"
+        if (
+            not (state := session.get(VersionGovernance, (agent.id, version.number)))
+            or state.stage != "disabled"
+        )
+        and (
+            local
+            or (
+                (published := session.get(Publication, agent.id))
+                and published.enabled
+                and published.version_number == version.number
+            )
+        )
     ]
 
 

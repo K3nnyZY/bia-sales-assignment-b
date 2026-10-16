@@ -4,7 +4,7 @@ import type { RunTrace } from "../../apps/web/src/lib/runtime";
 async function login(page: Page, role: "CREATOR" | "ADMIN", path: string) {
   await page.goto(path);
   await page
-    .getByLabel("Token de demostración")
+    .getByLabel("Token de acceso")
     .fill(process.env[`DEMO_${role}_TOKEN`]!);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await expect(

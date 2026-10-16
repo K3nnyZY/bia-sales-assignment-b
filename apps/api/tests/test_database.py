@@ -114,6 +114,7 @@ def test_postgres_migration_roundtrip_and_readiness():
                     SCHEMA_REVISION,
                 )
                 assert set(inspect(connection).get_table_names()) == {
+                    "access_tokens",
                     "alembic_version",
                     "knowledge_collections",
                     "knowledge_grants",

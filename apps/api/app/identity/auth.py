@@ -3,10 +3,10 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.db.session import DatabaseSession
-from app.identity.models import User
+from app.identity.models import AccessToken, User
 
 bearer = HTTPBearer(auto_error=False)
 
@@ -20,12 +20,13 @@ def current_user(
     session: DatabaseSession,
     credential: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
 ) -> User:
-    if not request.app.state.settings.enable_demo_auth:
+    settings = request.app.state.settings
+    if not settings.enable_demo_auth and not settings.enable_access_token_auth:
         raise HTTPException(
             503,
             detail={
                 "code": "AUTH_NOT_CONFIGURED",
-                "message": "Local demo authentication is disabled",
+                "message": "Authentication has not been configured",
             },
         )
     if not credential or len(credential.credentials) > 512:
@@ -34,7 +35,19 @@ def current_user(
             detail={"code": "UNAUTHENTICATED", "message": "A valid bearer token is required"},
             headers={"WWW-Authenticate": "Bearer"},
         )
-    user = session.scalar(select(User).where(User.token_hash == hash_token(credential.credentials)))
+    digest = hash_token(credential.credentials)
+    if settings.enable_access_token_auth:
+        user = session.scalar(
+            select(User)
+            .join(AccessToken, AccessToken.user_id == User.id)
+            .where(
+                AccessToken.token_hash == digest,
+                AccessToken.revoked.is_(False),
+                AccessToken.expires_at > func.now(),
+            )
+        )
+    else:
+        user = session.scalar(select(User).where(User.token_hash == digest))
     if user is None or not user.active:
         raise HTTPException(
             401,

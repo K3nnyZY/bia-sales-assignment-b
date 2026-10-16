@@ -14,10 +14,13 @@ ENV PATH="/workspace/.venv/bin:$PATH"
 RUN useradd --create-home app
 USER app
 EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "scripts/start-api.sh"]
 
 FROM base AS test
 USER root
 RUN uv sync --frozen
 USER app
 CMD ["pytest"]
+
+# The default Railway build must start the API, rather than the test stage.
+FROM base AS production

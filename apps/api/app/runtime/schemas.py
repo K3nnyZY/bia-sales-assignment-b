@@ -80,6 +80,6 @@ class ExecutableVersion(Contract):
     model_id: str
     model_provider: str
     config_hash: str
-    local_preview: Literal[True] = True
+    local_preview: bool = True
     available_modes: list[Literal["deterministic", "provider"]]
     published: bool = False

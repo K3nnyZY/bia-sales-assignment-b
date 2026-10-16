@@ -154,7 +154,10 @@ async def evaluate(
     session.refresh(agent, with_for_update=True)
     if user.role == "creator" and agent.owner_id != user.id:
         fail(403, "FORBIDDEN", "Only the owner may evaluate with creator role")
-    if not settings.enable_local_runtime or settings.app_env not in {"development", "test"}:
+    if not (
+        (settings.enable_local_runtime and settings.app_env in {"development", "test"})
+        or (settings.enable_published_runtime and settings.enable_access_token_auth)
+    ):
         fail(
             503,
             "LOCAL_EVALUATOR_DISABLED",

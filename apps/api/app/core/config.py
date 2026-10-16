@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     database_url: SecretStr | None = None
     cors_origins: list[str] = ["http://localhost:3000"]
     enable_demo_auth: bool = False
+    enable_access_token_auth: bool = False
+    enable_published_runtime: bool = False
     demo_admin_token: SecretStr | None = None
     demo_creator_token: SecretStr | None = None
     demo_viewer_token: SecretStr | None = None
@@ -39,10 +41,20 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def reject_production_demo(self):
+        if self.enable_demo_auth and self.enable_access_token_auth:
+            raise ValueError("Select one authentication mechanism")
         if self.app_env == "production" and (self.enable_demo_auth or self.enable_local_runtime):
             raise ValueError(
                 "Demo authentication and local runtime cannot be enabled in production"
             )
+        if self.enable_published_runtime and not self.enable_access_token_auth:
+            raise ValueError(
+                "Published deployment runtime requires private access token authentication"
+            )
+        if self.app_env == "production" and any(
+            origin == "*" or not origin.startswith("https://") for origin in self.cors_origins
+        ):
+            raise ValueError("Production CORS origins must use explicit HTTPS origins")
         return self
 
     @field_validator("database_url")

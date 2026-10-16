@@ -39,6 +39,7 @@ function Playground() {
   const chosenMode = selected?.available_modes.includes(mode)
     ? mode
     : selected?.available_modes[0];
+  const chosenChannel = selected?.local_preview ? channel : "published";
   const result = trace.data?.run;
 
   async function submit(event: FormEvent) {
@@ -50,7 +51,7 @@ function Playground() {
       const run = await api<RunResult>("/runs", "POST", {
         agent_id: selected.agent_id,
         version: selected.version,
-        channel,
+        channel: chosenChannel,
         mode: chosenMode,
         message,
         task,
@@ -76,7 +77,7 @@ function Playground() {
           respuesta y traza reales.
         </p>
         <p className="notice">
-          Datos sintéticos locales. Preview prueba snapshots con grants
+          Datos sintéticos. Preview local prueba snapshots con grants
           explícitos; Published exige una publicación aprobada y vigente.
         </p>
       </section>
@@ -121,12 +122,14 @@ function Playground() {
                 <label>
                   Canal de ejecución
                   <select
-                    value={channel}
+                    value={chosenChannel}
                     onChange={(e) =>
                       setChannel(e.target.value as "preview" | "published")
                     }
                   >
-                    <option value="preview">Preview · prueba local</option>
+                    {selected?.local_preview && (
+                      <option value="preview">Preview · prueba local</option>
+                    )}
                     <option value="published" disabled={!selected?.published}>
                       Published · versión aprobada
                     </option>
