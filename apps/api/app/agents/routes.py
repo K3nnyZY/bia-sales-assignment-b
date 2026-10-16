@@ -42,9 +42,10 @@ def agents(
 
 
 @router.post("", response_model=AgentRead, status_code=201)
-def add_agent(data: AgentCreate, session: DatabaseSession, user: CurrentUser):
+def add_agent(data: AgentCreate, response: Response, session: DatabaseSession, user: CurrentUser):
     item = service.create_agent(session, data, user)
     session.commit()
+    response.headers["Location"] = f"/api/v1/agents/{item.id}"
     return item
 
 

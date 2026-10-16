@@ -6,6 +6,10 @@ Validación local: 15 de octubre de 2026, macOS ARM64, PostgreSQL 16 en Docker.
 
 - CRUD de agentes con propietario, departamento, búsqueda, estados y control de
   revisión. El borrado solo permite agentes sin versiones; se conserva el historial.
+- Contrato de alta con ID generado opcionalmente, alias `owner`, perfil y
+  herramientas por nombre/ID; creación atómica del primer borrador y referencia
+  `initial_configuration`. Respuesta `state: DRAFT` junto con el `status` existente.
+  PATCH parcial conserva los metadatos omitidos y exige revisión actual.
 - Model Registry con proveedor, identificador/release exactos, perfil,
   capacidades, límites, costes declarativos y política de datos. Los perfiles
   aprobados se resuelven de forma unívoca a un modelo concreto.
@@ -31,7 +35,7 @@ Validación local: 15 de octubre de 2026, macOS ARM64, PostgreSQL 16 en Docker.
 | Agentes | `apps/api/app/agents/__init__.py`, `models.py`, `schemas.py`, `service.py`, `routes.py` |
 | Registro ORM y seed | `apps/api/app/db/models.py`, `apps/api/app/seed.py` |
 | Migración | `apps/api/migrations/versions/0002_agent_management_agent_management.py` |
-| Pruebas backend | `apps/api/tests/test_management_unit.py`, `apps/api/tests/test_management_api.py` |
+| Pruebas backend | `apps/api/tests/test_management_unit.py`, `apps/api/tests/test_management_api.py`, `apps/api/tests/test_agent_contract.py` |
 | Páginas | `apps/web/src/app/agents/page.tsx`, `apps/web/src/app/agents/[id]/page.tsx`, `apps/web/src/app/models/page.tsx`, `apps/web/src/app/tools/page.tsx` |
 | Componentes y cliente | `apps/web/src/components/studio.tsx`, `apps/web/src/components/catalog.tsx`, `apps/web/src/lib/studio.ts` |
 | Proxy | `apps/web/src/app/api/studio/[...path]/route.ts` |
@@ -63,8 +67,8 @@ la arquitectura futura de las funcionalidades entregadas.
 | `.venv/bin/alembic -c apps/api/alembic.ini upgrade head` | Migración aplicada |
 | `.venv/bin/alembic -c apps/api/alembic.ini check` | Sin operaciones pendientes |
 | `make verify` | Finalizó con código 0; build y arranque, seed, pruebas, lint y smoke |
-| Pytest dentro de `make verify` | **90 passed**, sin pruebas omitidas: 39 unitarias y 51 de integración/seguridad |
-| Ruff dentro de `make verify` | Lint y formato correctos, 33 archivos Python |
+| Pytest dentro de `make verify` | **107 passed**, sin pruebas omitidas: 42 unitarias y 65 de integración/seguridad |
+| Ruff dentro de `make verify` | Lint y formato correctos, 34 archivos Python |
 | Frontend dentro de `make verify` | ESLint, TypeScript y build correctos; **13 pruebas HTTP/proxy passed** |
 | `PLAYWRIGHT_CHANNEL=chrome npm run test:e2e` | **2 passed**, con Chrome real en modo headless |
 | `python3 scripts/smoke.py` | Correcto desde los puertos publicados en el Mac |
@@ -133,7 +137,7 @@ PostgreSQL conserva el puerto local 55432 establecido en Sprint 1.
 - Se conservó el CSS existente en lugar de migrar a Tailwind/shadcn; decisión
   explícita en ADR-010 para evitar una refactorización visual ajena al alcance.
 - Pytest emite una advertencia de deprecación de Starlette para su integración
-  actual con httpx; las 90 pruebas pasan. Continúan los cinco avisos altos del
+  actual con httpx; las 107 pruebas pasan. Continúan los cinco avisos altos del
   tooling de desarrollo de ESLint ya documentados en Sprint 1; runtime npm sin
   vulnerabilidades detectadas. No se aplicaron degradaciones forzadas.
 - Playwright deja agentes sintéticos `e2e-*` con historial; la suite de integración
@@ -141,3 +145,28 @@ PostgreSQL conserva el puerto local 55432 establecido en Sprint 1.
 
 El siguiente hito del roadmap es Agent Runtime; requiere una instrucción nueva
 antes de iniciarlo.
+
+## Ajuste posterior del contrato de endpoints
+
+Se modificaron `apps/api/app/agents/{models,schemas,service,routes}.py` y
+`apps/api/tests/test_management_unit.py`; se añadió
+`apps/api/tests/test_agent_contract.py`. Se actualizaron README, ADR-010 y este
+reporte. No se modificó el esquema: `alembic check` confirmó ausencia de drift.
+
+Comandos ejecutados para la verificación del ajuste:
+
+```sh
+.venv/bin/pytest -m 'not integration'
+RUN_DB_TESTS=1 .venv/bin/pytest -x --tb=short
+make verify
+PLAYWRIGHT_CHANNEL=chrome npm run test:e2e
+docker compose exec -T api alembic -c apps/api/alembic.ini check
+git diff --check
+```
+
+Resultados: 107 pruebas Pytest, 13 pruebas web y 2 flujos Chrome aprobados;
+Ruff, ESLint, TypeScript, build y smoke test correctos. También se comprobaron
+por HTTP real las ocho rutas propuestas, incluidos creación con ID generado y
+primera configuración, PATCH parcial y creación/consulta de otra versión.
+Los casos de selección no aprobada, permisos insuficientes, propietarios no
+válidos y herramientas ambiguas se verificaron con PostgreSQL real y rollback.

@@ -96,6 +96,7 @@ export function SiteHeader() {
         <Link href="/agents">Agentes</Link>
         <Link href="/models">Modelos</Link>
         <Link href="/tools">Herramientas</Link>
+        <Link href="/playground">Playground</Link>
         <Link href="/">Infraestructura</Link>
       </nav>
     </header>
@@ -170,7 +171,7 @@ export function StudioShell({ children }: { children: ReactNode }) {
       ) : (
         <Login />
       )}
-      <footer>Sprint 2 · Agent Management · Entorno sintético local</footer>
+      <footer>Sprint 3 · Agent Runtime · Entorno sintético local</footer>
     </main>
   );
 }

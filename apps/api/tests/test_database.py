@@ -67,6 +67,12 @@ def test_postgres_migration_roundtrip_and_readiness():
                     "agents",
                     "agent_versions",
                     "agent_tools",
+                    "invoices",
+                    "billing_knowledge",
+                    "agent_invocations",
+                    "agent_runs",
+                    "tool_calls",
+                    "run_events",
                 }
             assert client.get("/health/ready").status_code == 200
             with engine.begin() as connection:

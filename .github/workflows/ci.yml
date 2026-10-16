@@ -1,4 +1,4 @@
-name: Foundation and Agent Management CI
+name: BIA Studio CI
 
 on:
   push:
@@ -18,7 +18,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
-      - name: Verify browser management flow
+      - name: Verify management and runtime browser flows
         run: |
           npm ci
           npx playwright install --with-deps chromium

@@ -2,7 +2,7 @@ SHELL := /bin/sh
 UV ?= uv
 COMPOSE := docker compose
 
-.PHONY: help env demo-env seed config up down logs ps migrate test test-unit lint web-check smoke verify install dev-api dev-web e2e
+.PHONY: help env demo-env seed runtime-seed runtime-smoke provider-smoke config up down logs ps migrate test test-unit lint web-check smoke verify install dev-api dev-web e2e
 
 help:
 	@echo "make env       Create .env without overwriting existing configuration"
@@ -19,6 +19,9 @@ demo-env: env
 
 seed: env
 	$(COMPOSE) run --rm --build migrate python -m app.seed
+
+runtime-seed: env
+	$(COMPOSE) run --rm --build migrate python -m app.runtime.seed
 
 e2e:
 	npm run test:e2e
@@ -57,13 +60,21 @@ web-check: env
 smoke:
 	$(COMPOSE) exec -T api python - --api-url http://api:8000 --web-url http://web:3000 < scripts/smoke.py
 
+runtime-smoke:
+	$(COMPOSE) exec -T api python - < scripts/runtime_smoke.py
+
+provider-smoke:
+	$(COMPOSE) exec -T api python - < scripts/provider_smoke.py
+
 verify:
 	$(MAKE) up
 	$(MAKE) seed
+	$(MAKE) runtime-seed
 	$(MAKE) test
 	$(MAKE) lint
 	$(MAKE) web-check
 	$(MAKE) smoke
+	$(MAKE) runtime-smoke
 
 install: env
 	$(UV) sync --frozen

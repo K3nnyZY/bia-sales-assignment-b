@@ -1,0 +1,158 @@
+{
+  "verified_on": "2026-10-15",
+  "catalog_model": "openai-gpt54-mini-20260317",
+  "model_identifier": "gpt-5.4-mini-2026-03-17",
+  "catalog_status": "approved",
+  "agent_version": 2,
+  "provider_enabled": true,
+  "credential_model_access_http_status": 200,
+  "generation_http_status": 429,
+  "provider_error_code": "credit_balance_exhausted",
+  "provider_error_type": "insufficient_quota",
+  "successful_generation_verified": false,
+  "fallback_used": false,
+  "runtime_trace": {
+    "run": {
+      "id": "run-82531fcdf19949058e12a848f8209c08",
+      "agent_id": "billing-assistant",
+      "version_number": 2,
+      "caller_id": "demo-creator",
+      "model_id": "openai-gpt54-mini-20260317",
+      "config_hash": "e84eee5a8926f5846da1e16ef0d1b712be099e868a6943c9303079e199392d22",
+      "workflow_version": "billing_workflow_v1:1.0.0",
+      "mode": "provider",
+      "status": "failed",
+      "answer": "No se pudo completar la llamada al proveedor.",
+      "error_code": "MODEL_UNAVAILABLE",
+      "calculations": {},
+      "references": [],
+      "input_tokens": null,
+      "output_tokens": null,
+      "estimated_cost_usd": null,
+      "started_at": "2026-10-16T03:50:57.468719Z",
+      "completed_at": "2026-10-16T03:51:00.577916Z"
+    },
+    "events": [
+      {
+        "step": 1,
+        "node": "authorize",
+        "status": "completed",
+        "error_code": null,
+        "started_at": "2026-10-16T03:50:57.474783Z",
+        "duration_ms": 4
+      },
+      {
+        "step": 2,
+        "node": "route",
+        "status": "completed",
+        "error_code": null,
+        "started_at": "2026-10-16T03:50:57.481233Z",
+        "duration_ms": 0
+      },
+      {
+        "step": 3,
+        "node": "invoice",
+        "status": "completed",
+        "error_code": null,
+        "started_at": "2026-10-16T03:50:57.482569Z",
+        "duration_ms": 6
+      },
+      {
+        "step": 4,
+        "node": "previous",
+        "status": "completed",
+        "error_code": null,
+        "started_at": "2026-10-16T03:50:57.489520Z",
+        "duration_ms": 4
+      },
+      {
+        "step": 5,
+        "node": "knowledge",
+        "status": "completed",
+        "error_code": null,
+        "started_at": "2026-10-16T03:50:57.494703Z",
+        "duration_ms": 5
+      },
+      {
+        "step": 6,
+        "node": "calculate",
+        "status": "completed",
+        "error_code": null,
+        "started_at": "2026-10-16T03:50:57.500751Z",
+        "duration_ms": 0
+      },
+      {
+        "step": 7,
+        "node": "generate",
+        "status": "failed",
+        "error_code": "MODEL_UNAVAILABLE",
+        "started_at": "2026-10-16T03:50:57.501657Z",
+        "duration_ms": 3070
+      },
+      {
+        "step": 7,
+        "node": "failure",
+        "status": "completed",
+        "error_code": null,
+        "started_at": "2026-10-16T03:51:00.574875Z",
+        "duration_ms": 0
+      }
+    ],
+    "tool_calls": [
+      {
+        "id": "call-1517026db3474c6ba7c45b1d9ac74dc2",
+        "tool_id": "invoice-lookup-v3",
+        "tool_version": "3.0.0",
+        "arguments": {
+          "invoice_id": "INV-1002"
+        },
+        "result_references": [
+          "INV-1002"
+        ],
+        "attempt": 1,
+        "status": "completed",
+        "error_code": null,
+        "started_at": "2026-10-16T03:50:57.482573Z",
+        "completed_at": "2026-10-16T03:50:57.487394Z",
+        "duration_ms": 4
+      },
+      {
+        "id": "call-f7a0eab7fc5b4236be4a32ac10d99c4a",
+        "tool_id": "invoice-previous-v1",
+        "tool_version": "1.0.0",
+        "arguments": {
+          "invoice_id": "INV-1002"
+        },
+        "result_references": [
+          "INV-1001"
+        ],
+        "attempt": 1,
+        "status": "completed",
+        "error_code": null,
+        "started_at": "2026-10-16T03:50:57.489525Z",
+        "completed_at": "2026-10-16T03:50:57.493223Z",
+        "duration_ms": 3
+      },
+      {
+        "id": "call-87c9ee36c9a04f70b96f54a598a9d634",
+        "tool_id": "billing-knowledge-v1",
+        "tool_version": "1.0.0",
+        "arguments": {
+          "period": "2026-09-01"
+        },
+        "result_references": [
+          "billing-faq@1.0.0",
+          "tariffs-2026-09@1.0.0"
+        ],
+        "attempt": 1,
+        "status": "completed",
+        "error_code": null,
+        "started_at": "2026-10-16T03:50:57.494707Z",
+        "completed_at": "2026-10-16T03:50:57.499257Z",
+        "duration_ms": 4
+      }
+    ]
+  },
+  "model_documentation": "https://developers.openai.com/api/docs/models/gpt-5.4-mini",
+  "error_documentation": "https://developers.openai.com/api/docs/guides/error-codes"
+}

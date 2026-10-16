@@ -36,6 +36,17 @@ class Agent(Base):
     next_version: Mapped[int] = mapped_column(Integer, default=1)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
+    @property
+    def state(self) -> str:
+        return self.status.upper()
+
+    @property
+    def initial_configuration(self) -> str | None:
+        # Version numbers start at 1 and the API preserves version history.
+        if self.next_version > 1:
+            return f"/api/v1/agents/{self.id}/versions/1"
+        return None
+
 
 class AgentVersion(Base):
     __tablename__ = "agent_versions"

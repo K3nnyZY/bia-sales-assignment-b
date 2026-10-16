@@ -1,0 +1,137 @@
+{
+  "verified_on": "2026-10-15",
+  "scope": "Sprint 3 local runtime only; no Sprint 4",
+  "endpoints": {
+    "playground": "http://localhost:3000/playground",
+    "api": "http://localhost:8001"
+  },
+  "langgraph": {
+    "version": "1.2.15",
+    "compiled_type": "langgraph.graph.state.CompiledStateGraph",
+    "executed_comparison_nodes": [
+      "authorize",
+      "route",
+      "invoice",
+      "previous",
+      "knowledge",
+      "calculate",
+      "generate",
+      "validate_output",
+      "finalize"
+    ]
+  },
+  "provider": {
+    "enabled": false,
+    "openai_credentials_configured": false,
+    "anthropic_credentials_configured": false,
+    "live_provider_calls_verified": false,
+    "deterministic_response_labelled": true,
+    "gateway_tests": "SDK boundary doubles only"
+  },
+  "flow": {
+    "run_id": "run-5cdea5f9a995496c91bcac56db9ca706",
+    "version": 1,
+    "status": "completed",
+    "mode": "deterministic",
+    "difference_cop": "64400.00",
+    "tool_calls": 3,
+    "cross_customer": "denied",
+    "invoice_query_run_id": "run-9f5ab56396ec45bf9f5b925a4d15baab",
+    "denied_run_id": "run-e285ff6f0fe946b4bfc284dcd1ca08a3",
+    "failed_tool_run_id": "run-f10e664f6c224dee8497132e29278595",
+    "failed_tool_code": "PREVIOUS_INVOICE_UNAVAILABLE",
+    "customer_b_run_id": "run-0c9db57ab6284c489a03145aabfbc1ef",
+    "customer_b_difference_cop": "27000.00",
+    "consumption_difference_kwh": "70.000",
+    "nodes": [
+      "authorize",
+      "route",
+      "invoice",
+      "previous",
+      "knowledge",
+      "calculate",
+      "generate",
+      "validate_output",
+      "finalize"
+    ],
+    "trace_sha256": "6fbf9610f10d2242ef13701efa668d59911c29dc5a8e4911e05274a987431f4c",
+    "trace_digests": {
+      "run-5cdea5f9a995496c91bcac56db9ca706": "6fbf9610f10d2242ef13701efa668d59911c29dc5a8e4911e05274a987431f4c",
+      "run-9f5ab56396ec45bf9f5b925a4d15baab": "6eee53462b70d99a33933e0a7ee03ddafc73242b1f78dce8bfd3045e6dfd1c68",
+      "run-e285ff6f0fe946b4bfc284dcd1ca08a3": "49aaa64f56e5e1687aa1889d00978e55e91718cac4e8bb8264ec54ae7b134017",
+      "run-f10e664f6c224dee8497132e29278595": "aac9835a50a2a071506a4e86a1e36b3d0f6a5b7e806ef0bbbc91f543867a5b26",
+      "run-0c9db57ab6284c489a03145aabfbc1ef": "d1ab3f8ffb78cd15dbe4cac0174ed604d17eb0af1d5866de918039c5319bb920"
+    }
+  },
+  "database_records_after_restart": [
+    {
+      "scenario": "invoice_query_run_id",
+      "run_id": "run-9f5ab56396ec45bf9f5b925a4d15baab",
+      "status": "completed",
+      "error_code": null,
+      "node_count": 8,
+      "tool_call_count": 2,
+      "config_hash": "3033f6ef1a4d05cc5d76a1d0bd0c0134b2faf9053e6b421d02621adb0c6f2442",
+      "mode": "deterministic",
+      "input_tokens": null,
+      "output_tokens": null,
+      "estimated_cost_usd": null
+    },
+    {
+      "scenario": "run_id",
+      "run_id": "run-5cdea5f9a995496c91bcac56db9ca706",
+      "status": "completed",
+      "error_code": null,
+      "node_count": 9,
+      "tool_call_count": 3,
+      "config_hash": "3033f6ef1a4d05cc5d76a1d0bd0c0134b2faf9053e6b421d02621adb0c6f2442",
+      "mode": "deterministic",
+      "input_tokens": null,
+      "output_tokens": null,
+      "estimated_cost_usd": null
+    },
+    {
+      "scenario": "denied_run_id",
+      "run_id": "run-e285ff6f0fe946b4bfc284dcd1ca08a3",
+      "status": "denied",
+      "error_code": "INVOICE_NOT_ACCESSIBLE",
+      "node_count": 4,
+      "tool_call_count": 1,
+      "config_hash": "3033f6ef1a4d05cc5d76a1d0bd0c0134b2faf9053e6b421d02621adb0c6f2442",
+      "mode": "deterministic",
+      "input_tokens": null,
+      "output_tokens": null,
+      "estimated_cost_usd": null
+    },
+    {
+      "scenario": "failed_tool_run_id",
+      "run_id": "run-f10e664f6c224dee8497132e29278595",
+      "status": "escalated",
+      "error_code": "PREVIOUS_INVOICE_UNAVAILABLE",
+      "node_count": 5,
+      "tool_call_count": 2,
+      "config_hash": "3033f6ef1a4d05cc5d76a1d0bd0c0134b2faf9053e6b421d02621adb0c6f2442",
+      "mode": "deterministic",
+      "input_tokens": null,
+      "output_tokens": null,
+      "estimated_cost_usd": null
+    },
+    {
+      "scenario": "customer_b_run_id",
+      "run_id": "run-0c9db57ab6284c489a03145aabfbc1ef",
+      "status": "completed",
+      "error_code": null,
+      "node_count": 9,
+      "tool_call_count": 3,
+      "config_hash": "3033f6ef1a4d05cc5d76a1d0bd0c0134b2faf9053e6b421d02621adb0c6f2442",
+      "mode": "deterministic",
+      "input_tokens": null,
+      "output_tokens": null,
+      "estimated_cost_usd": null
+    }
+  ],
+  "persistence": {
+    "api_restarted": true,
+    "all_five_trace_digests_unchanged": true
+  }
+}

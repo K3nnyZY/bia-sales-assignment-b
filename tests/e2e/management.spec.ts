@@ -56,7 +56,9 @@ test("create, edit, snapshot, clone and reload a persisted agent", async ({
   await expect(
     page.getByRole("heading", { name: "Versión 1 · snapshot", exact: true }),
   ).toBeVisible();
-  await expect(page.getByRole("textbox", { name: "Objetivo", exact: true })).toBeDisabled();
+  await expect(
+    page.getByRole("textbox", { name: "Objetivo", exact: true }),
+  ).toBeDisabled();
   const original = await page.request.get(
     `/api/studio/agents/${id}/versions/1`,
     { headers: { Authorization: `Bearer ${creator}` } },
@@ -82,9 +84,9 @@ test("create, edit, snapshot, clone and reload a persisted agent", async ({
   await page
     .getByRole("button", { name: "v1 · snapshot", exact: true })
     .click();
-  await expect(page.getByRole("textbox", { name: "Objetivo", exact: true })).toHaveValue(
-    "Explain synthetic authorized invoices",
-  );
+  await expect(
+    page.getByRole("textbox", { name: "Objetivo", exact: true }),
+  ).toHaveValue("Explain synthetic authorized invoices");
   await login(page, creator, `/agents/${id}`); // Reload removes the in-memory credential.
   await expect(
     page.getByRole("button", { name: "v1 · snapshot", exact: true }),
@@ -118,6 +120,25 @@ test("catalog management requires administrator identity", async ({ page }) => {
   await page.getByRole("button", { name: "Salir", exact: true }).click();
   await page.getByLabel("Token de demostración").fill(admin);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
+  const catalogResponse = await page.request.get(
+    "/api/studio/models?approved_only=false",
+    { headers: { Authorization: `Bearer ${admin}` } },
+  );
+  expect(catalogResponse.ok()).toBeTruthy();
+  const catalog: { profile: string; status: string }[] =
+    await catalogResponse.json();
+  const approvedProfiles = new Set(
+    catalog
+      .filter((item) => item.status === "approved")
+      .map((item) => item.profile),
+  );
+  const freeProfile = ["advanced", "restricted", "economy", "balanced"].find(
+    (profile) => !approvedProfiles.has(profile),
+  );
+  expect(
+    freeProfile,
+    "The catalog test requires one unassigned profile",
+  ).toBeDefined();
   const id = `e2e-model-${Date.now()}`;
   const model = {
     id,
@@ -125,7 +146,7 @@ test("catalog management requires administrator identity", async ({ page }) => {
     provider: "synthetic",
     model_identifier: `synthetic/${id}`,
     release: "1",
-    profile: "advanced",
+    profile: freeProfile,
     capabilities: ["chat"],
     context_window: 10000,
     max_output_tokens: 1000,

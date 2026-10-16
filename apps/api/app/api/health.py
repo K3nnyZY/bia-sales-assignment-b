@@ -12,7 +12,7 @@ from app.db.session import DatabaseSession
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["health"])
 # Update alongside migrations; readiness requires the deployed schema revision.
-SCHEMA_REVISION = "0002_agent_management"
+SCHEMA_REVISION = "0003_agent_runtime"
 
 
 class HealthResponse(BaseModel):

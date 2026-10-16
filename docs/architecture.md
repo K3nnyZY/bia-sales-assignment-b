@@ -6,6 +6,12 @@
 **Project:** BIA Agent Studio
 **Context:** BIA AI Engineer Challenge - Option B
 
+**Implementation checkpoint (2026-10-15):** Sprints 1–3 implement Foundation,
+Agent Management and a local Agent Runtime preview. This document describes the
+broader target architecture; publication, evaluations, approvals and RAG remain
+unimplemented. See [ADR-011](decisions/ADR-011-agent-runtime.md) and the
+[Sprint 3 report](sprint-3-report.md) for the implemented boundaries and results.
+
 ---
 
 # 1. Overview

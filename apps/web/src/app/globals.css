@@ -4,6 +4,33 @@
   --muted: #5b716c;
   --line: #dce5df;
 }
+.runtime-answer {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.trace-heading {
+  margin-top: 30px;
+}
+.table-scroll {
+  overflow-x: auto;
+  margin: 18px 0;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  text-align: left;
+}
+th,
+td {
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--line);
+}
+.version-button span {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+}
 * {
   box-sizing: border-box;
 }

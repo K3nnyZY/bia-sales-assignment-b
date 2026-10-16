@@ -15,12 +15,16 @@ test("proxy allows only management routes", () => {
     "tools/invoice-read-v1",
     "me",
     "users",
+    "runs",
+    "runtime/agents",
+    "runs/run-0123456789abcdef0123456789abcdef/trace",
   ])
     assert.ok(allowedStudioPath(path.split("/")), path);
   for (const path of [
     "",
     "../health",
-    "runs",
+    "runs/arbitrary-user-input",
+    "runs/run-0123456789abcdef0123456789abcdef/execute",
     "agents/../users",
     "agents/a%2Fb",
     "agents/foo/execute",

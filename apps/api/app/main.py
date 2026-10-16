@@ -10,6 +10,7 @@ from app.api.health import router as health_router
 from app.catalogs.routes import router as catalogs_router
 from app.core.config import Settings
 from app.db.session import build_engine
+from app.runtime.routes import router as runtime_router
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -23,7 +24,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         finally:
             app.state.engine.dispose()
 
-    app = FastAPI(title="BIA Agent Studio API", version="0.2.0", lifespan=lifespan)
+    app = FastAPI(title="BIA Agent Studio API", version="0.3.0", lifespan=lifespan)
     app.state.settings = config
 
     @app.exception_handler(IntegrityError)
@@ -49,6 +50,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health_router)
     app.include_router(catalogs_router)
     app.include_router(agents_router)
+    app.include_router(runtime_router)
     return app
 
 

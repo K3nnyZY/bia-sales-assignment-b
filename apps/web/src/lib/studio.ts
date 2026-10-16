@@ -44,6 +44,7 @@ export type Configuration = {
   kind: "AgentConfiguration";
   objective: string;
   instructions: string;
+  workflow?: { id: "billing_workflow_v1"; version: "1.0.0" } | null;
   model: {
     model_id: string;
     profile?: string | null;
@@ -99,7 +100,9 @@ export async function studioRequest<T>(
     },
     body: body === undefined ? undefined : JSON.stringify(body),
     cache: "no-store",
-    signal: AbortSignal.timeout(10000),
+    signal: AbortSignal.timeout(
+      path === "/runs" && method === "POST" ? 130000 : 10000,
+    ),
   });
   if (!response.ok) {
     let message = `HTTP ${response.status}`;
@@ -127,6 +130,12 @@ export function allowedStudioPath(segments: string[]): boolean {
     segments.some((part) => !/^[a-zA-Z0-9_-]+$/.test(part))
   )
     return false;
+  if (
+    /^(runs(?:\/run-[a-f0-9]{32}(?:\/trace)?)?|runtime\/agents)$/.test(
+      segments.join("/"),
+    )
+  )
+    return true;
   return /^(me|users|models(?:\/[a-z][a-z0-9_-]{2,79})?|tools(?:\/[a-z][a-z0-9_-]{2,79})?|agents(?:\/[a-z][a-z0-9_-]{2,79}(?:\/versions(?:\/[1-9]\d*(?:\/snapshot)?)?)?)?)$/.test(
     segments.join("/"),
   );

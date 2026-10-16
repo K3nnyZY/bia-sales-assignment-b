@@ -40,7 +40,11 @@ async function forward(
         headers: { Authorization: token, "Content-Type": "application/json" },
         body: body || undefined,
         cache: "no-store",
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(
+          path.join("/") === "runs" && request.method === "POST"
+            ? 125000
+            : 8000,
+        ),
         redirect: "error",
       },
     );

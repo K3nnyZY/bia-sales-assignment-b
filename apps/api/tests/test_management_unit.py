@@ -4,7 +4,7 @@ import pytest
 from fastapi import HTTPException
 from pydantic import ValidationError
 
-from app.agents.schemas import AgentConfiguration, VersionCreate
+from app.agents.schemas import AgentConfiguration, AgentCreate, VersionCreate
 from app.agents.service import check_revision, configuration_hash, require_creator
 from app.catalogs.schemas import ToolCreate
 from app.core.config import Settings
@@ -17,6 +17,19 @@ CONFIG = {
     "model": {"profile": "balanced", "max_output_tokens": 1000},
     "tool_ids": ["invoice-read-v1"],
 }
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {"tools": ["get_customer_invoice"]},
+        {"model_profile": "balanced", "tools": ["get_customer_invoice", "get_customer_invoice"]},
+        {"owner": "demo-creator", "owner_id": "demo-administrator"},
+    ],
+)
+def test_agent_create_rejects_incomplete_or_conflicting_selection(extra):
+    with pytest.raises(ValidationError):
+        AgentCreate(name="Test", department="Test", **extra)
 
 
 @pytest.mark.parametrize(

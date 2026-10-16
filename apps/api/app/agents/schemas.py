@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import Field, model_validator
+from pydantic import AliasChoices, Field, model_validator
 
 from app.catalogs.schemas import Capability, Contract, Identifier, Name, Profile
 
@@ -32,6 +32,11 @@ class SecurityPolicy(Contract):
     allow_financial_writes: Literal[False] = False
 
 
+class WorkflowSelection(Contract):
+    id: Literal["billing_workflow_v1"]
+    version: Literal["1.0.0"] = "1.0.0"
+
+
 class AgentConfiguration(Contract):
     api_version: Literal["bia.ai/v1"] = "bia.ai/v1"
     kind: Literal["AgentConfiguration"] = "AgentConfiguration"
@@ -42,6 +47,7 @@ class AgentConfiguration(Contract):
     required_capabilities: Annotated[list[Capability], Field(max_length=4)] = ["chat"]
     limits: ExecutionLimits = ExecutionLimits()
     security: SecurityPolicy = SecurityPolicy()
+    workflow: WorkflowSelection | None = None
 
     @model_validator(mode="after")
     def unique_references(self):
@@ -54,20 +60,44 @@ class AgentConfiguration(Contract):
 
 
 class AgentCreate(Contract):
-    id: Identifier
+    id: Identifier | None = None
     name: Name
     description: Annotated[str, Field(max_length=4000)] = ""
     department: Annotated[str, Field(min_length=1, max_length=120)]
-    owner_id: Identifier | None = None
+    owner_id: Identifier | None = Field(
+        default=None, validation_alias=AliasChoices("owner_id", "owner")
+    )
+    model_profile: Profile | None = None
+    tools: Annotated[
+        list[Annotated[str, Field(pattern=r"^[a-z][a-z0-9_-]{2,119}$")]],
+        Field(max_length=20),
+    ] = []
+
+    @model_validator(mode="after")
+    def initial_configuration_selection(self):
+        if self.tools and self.model_profile is None:
+            raise ValueError("tools require model_profile for the initial configuration")
+        if len(self.tools) != len(set(self.tools)):
+            raise ValueError("Duplicate tool references")
+        return self
 
 
 class AgentUpdate(Contract):
     expected_revision: Annotated[int, Field(ge=1)]
-    name: Name
-    description: Annotated[str, Field(max_length=4000)] = ""
-    department: Annotated[str, Field(min_length=1, max_length=120)]
-    owner_id: Identifier
-    status: AgentStatus
+    name: Name | None = None
+    description: Annotated[str, Field(max_length=4000)] | None = None
+    department: Annotated[str, Field(min_length=1, max_length=120)] | None = None
+    owner_id: Identifier | None = Field(
+        default=None, validation_alias=AliasChoices("owner_id", "owner")
+    )
+    status: AgentStatus | None = None
+
+    @model_validator(mode="after")
+    def require_non_null_changes(self):
+        changes = self.model_fields_set - {"expected_revision"}
+        if not changes or any(getattr(self, key) is None for key in changes):
+            raise ValueError("Provide at least one non-null metadata change")
+        return self
 
 
 class AgentRead(Contract):
@@ -77,6 +107,8 @@ class AgentRead(Contract):
     department: str
     owner_id: str
     status: AgentStatus
+    state: Literal["DRAFT", "DISABLED", "DEPRECATED"]
+    initial_configuration: str | None
     revision: int
     created_at: datetime
 

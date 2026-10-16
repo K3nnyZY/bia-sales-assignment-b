@@ -1,12 +1,19 @@
 import hashlib
 import json
+from uuid import uuid4
 
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.agents.models import Agent, AgentTool, AgentVersion
-from app.agents.schemas import AgentConfiguration, AgentCreate, AgentUpdate, VersionCreate
+from app.agents.schemas import (
+    AgentConfiguration,
+    AgentCreate,
+    AgentUpdate,
+    ModelSelection,
+    VersionCreate,
+)
 from app.catalogs.models import Model, Tool
 from app.catalogs.schemas import ModelCreate, ToolCreate
 from app.identity.models import User
@@ -58,20 +65,65 @@ def create_agent(session: Session, data: AgentCreate, user: User) -> Agent:
     if owner_id != user.id and user.role != "administrator":
         fail(403, "FORBIDDEN", "Only administrators may assign another owner")
     owner_for(session, owner_id)
-    agent = Agent(**data.model_dump(exclude={"owner_id"}), owner_id=owner_id)
+    agent = Agent(
+        id=data.id or f"agent-{uuid4().hex}",
+        name=data.name,
+        description=data.description,
+        department=data.department,
+        owner_id=owner_id,
+    )
     session.add(agent)
     session.flush()
+    if data.model_profile is not None:
+        model = session.scalar(
+            select(Model)
+            .where(Model.profile == data.model_profile, Model.status == "approved")
+            .with_for_update(read=True)
+        )
+        if model is None:
+            fail(422, "MODEL_NOT_APPROVED", "Select an approved model profile")
+        tool_ids = resolve_initial_tools(session, data.tools)
+        configuration = AgentConfiguration(
+            objective=data.description or data.name,
+            instructions="Follow the declared objective using only approved capabilities "
+            "and evidence authorized for the caller.",
+            model=ModelSelection(
+                model_id=model.id, max_output_tokens=min(1000, model.max_output_tokens)
+            ),
+            tool_ids=tool_ids,
+        )
+        create_version(session, agent, VersionCreate(configuration=configuration), user)
     return agent
+
+
+def resolve_initial_tools(session: Session, references: list[str]) -> list[str]:
+    tools = session.scalars(
+        select(Tool).where(
+            (Tool.id.in_(references) | Tool.name.in_(references)), Tool.status == "approved"
+        )
+    ).all()
+    resolved = []
+    for reference in references:
+        matches = [tool for tool in tools if reference in {tool.id, tool.name}]
+        if not matches:
+            fail(422, "TOOL_NOT_APPROVED", "Every tool must be registered and approved")
+        if len(matches) > 1:
+            fail(409, "AMBIGUOUS_TOOL", "Multiple approved tool versions match; use a catalog ID")
+        resolved.append(matches[0].id)
+    if len(resolved) != len(set(resolved)):
+        fail(422, "DUPLICATE_TOOL", "Tool names and IDs must not refer to the same tool twice")
+    return resolved
 
 
 def update_agent(session: Session, agent: Agent, data: AgentUpdate, user: User) -> Agent:
     check_revision(agent.revision, data.expected_revision)
-    if agent.status == "deprecated" and data.status != "deprecated":
+    changes = data.model_dump(exclude={"expected_revision"}, exclude_unset=True)
+    if agent.status == "deprecated" and changes.get("status", agent.status) != "deprecated":
         fail(409, "INVALID_TRANSITION", "Deprecated agents cannot be reactivated")
-    if agent.owner_id != data.owner_id:
+    if changes.get("owner_id", agent.owner_id) != agent.owner_id:
         if user.role != "administrator":
             fail(403, "FORBIDDEN", "Only administrators may transfer ownership")
-        owner = owner_for(session, data.owner_id)
+        owner = owner_for(session, changes["owner_id"])
         versions = session.scalars(
             select(AgentVersion).where(AgentVersion.agent_id == agent.id)
         ).all()
@@ -81,7 +133,7 @@ def update_agent(session: Session, agent: Agent, data: AgentUpdate, user: User) 
             validate_configuration(
                 session, AgentConfiguration.model_validate(version.configuration), owner
             )
-    for key, value in data.model_dump(exclude={"expected_revision"}).items():
+    for key, value in changes.items():
         setattr(agent, key, value)
     agent.revision += 1
     session.flush()

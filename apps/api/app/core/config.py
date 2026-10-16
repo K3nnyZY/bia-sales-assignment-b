@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Literal
 
-from pydantic import SecretStr, field_validator, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import URL, make_url
 
@@ -23,11 +23,20 @@ class Settings(BaseSettings):
     demo_admin_token: SecretStr | None = None
     demo_creator_token: SecretStr | None = None
     demo_viewer_token: SecretStr | None = None
+    demo_customer_b_token: SecretStr | None = None
+    enable_local_runtime: bool = False
+    enable_provider_runtime: bool = False
+    model_timeout_seconds: float = Field(default=15, gt=0, le=60)
+    runtime_timeout_seconds: float = Field(default=30, gt=0, le=120)
+    openai_api_key: SecretStr | None = None
+    anthropic_api_key: SecretStr | None = None
 
     @model_validator(mode="after")
     def reject_production_demo(self):
-        if self.app_env == "production" and self.enable_demo_auth:
-            raise ValueError("Demo authentication cannot be enabled in production")
+        if self.app_env == "production" and (self.enable_demo_auth or self.enable_local_runtime):
+            raise ValueError(
+                "Demo authentication and local runtime cannot be enabled in production"
+            )
         return self
 
     @field_validator("database_url")

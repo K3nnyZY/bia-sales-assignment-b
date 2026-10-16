@@ -1,11 +1,15 @@
-# BIA Agent Studio — Sprint 2: Agent Management
+# BIA Agent Studio — Sprint 3: Agent Runtime
 
 Monorepo con Next.js 16 (TypeScript, App Router), FastAPI, PostgreSQL 16,
-SQLAlchemy 2, Alembic, Pytest y Ruff. Implementa Foundation y Agent Management
-de [la arquitectura](docs/architecture.md): agentes, catálogos aprobados,
-borradores editables y snapshots inmutables. No incluye LangGraph, RAG,
-publicación ni ejecución de agentes. Las decisiones y diferencias respecto
-al diseño futuro están en [ADR-010](docs/decisions/ADR-010-agent-management.md).
+SQLAlchemy 2, Alembic, Pytest y Ruff. Implementa Foundation, Agent Management
+y Agent Runtime de [la arquitectura](docs/architecture.md). LangGraph ejecuta
+un billing-assistant con facturas sintéticas, autorización por cliente,
+cálculos Decimal, tarifas/FAQ aprobadas y trazas persistidas. Incluye Playground
+y gateway LiteLLM opcional. No implementa RAG, evaluaciones ni publicación.
+Las decisiones están en [ADR-010](docs/decisions/ADR-010-agent-management.md) y
+[ADR-011](docs/decisions/ADR-011-agent-runtime.md); los resultados de esta entrega
+están en el [reporte del Sprint 3](docs/sprint-3-report.md) y su
+[verificación de cierre con evidencia](docs/sprint-3-verification.md).
 
 ## Arranque y verificación en macOS
 
@@ -31,7 +35,8 @@ make verify
 `make demo-env` añade únicamente las variables de demostración que falten en
 un `.env` del Sprint 1, conservando valores existentes. Si has deshabilitado
 `ENABLE_DEMO_AUTH`, debes activarlo explícitamente en desarrollo para usar
-los registros de este sprint. `make verify` valida Compose, construye y arranca
+los registros de este sprint. Activa también `ENABLE_LOCAL_RUNTIME=true`
+para el Playground; ambos flags se rechazan en producción. `make verify` valida Compose, construye y arranca
 los servicios, aplica migraciones, carga seeds idempotentes, espera los health
 checks y ejecuta:
 
@@ -39,6 +44,13 @@ checks y ejecuta:
 2. Ruff (lint y formato).
 3. ESLint, TypeScript y pruebas de clientes HTTP y rutas permitidas del frontend.
 4. Un smoke test HTTP de frontend → FastAPI → PostgreSQL y Alembic.
+5. Un smoke test del runtime: comparación, traza y rechazo entre clientes.
+
+Los ejemplos HTTP directos de esta guía usan el puerto predeterminado 8000.
+En el Mac verificado se cambió `.env` a `API_PORT=8001` por un conflicto de
+puerto; usa `http://localhost:8001/docs` y sustituye 8000 por 8001 en los
+comandos HTTP directos. Playground sigue en 3000 y los targets Make usan
+la configuración de Compose.
 
 El build de producción de Next.js se ejecuta al construir su imagen.
 Los servicios quedan disponibles al terminar. Para comprobarlos desde el Mac:
@@ -54,6 +66,7 @@ docker compose exec -T api alembic -c apps/api/alembic.ini check
 docker compose exec -T postgres psql -U bia -d bia_studio -c 'SELECT version_num FROM alembic_version;'
 open http://localhost:3000
 open http://localhost:3000/agents
+open http://localhost:3000/playground
 ```
 
 La API de readiness debe devolver:
@@ -91,11 +104,149 @@ son inmutables; para cambiar su definición hay que registrar otra versión.
 El visor (`DEMO_VIEWER_TOKEN`) solo puede leer.
 
 Los modelos `synthetic-*` son contratos ficticios; no conectan con proveedores.
-Las herramientas `invoice-*` describen esquemas, permisos y políticas, sin
-ejecutar operaciones. `invoice-read-v1` requiere `invoices:read`, concedido a
+Los contratos anteriores `invoice-read-v1` e `invoice-read-v2` se conservan
+inmutables y no tienen adaptador ejecutable. El seed del runtime añade contratos
+con salida completa y adaptadores controlados; consulta la siguiente sección.
+`invoice-read-v1` requiere `invoices:read`, concedido a
 los propietarios sintéticos creator/administrator. Exportación y escritura
 permiten comprobar rechazos de permisos; las herramientas de escritura no
 pueden asignarse en este sprint. No hay métricas operativas simuladas.
+
+## Ejecutar billing-assistant en Playground
+
+`make verify` ejecuta primero `make seed` y después `make runtime-seed`.
+El segundo crea cuatro facturas de dos clientes, documentos aprobados, tres
+contratos ejecutables y un snapshot de `billing-assistant`. Un grant explícito
+por cliente y versión autoriza su invocación local. Un snapshot sigue sin ser
+una publicación; no se pueden ejecutar borradores editables ni concederse
+invocaciones desde una configuración. Solo está habilitado en development/test.
+
+1. Abre `http://localhost:3000/playground` e introduce `DEMO_CREATOR_TOKEN` de `.env`.
+2. Selecciona `billing-assistant`, su versión sintética y **deterministic**.
+3. Para una consulta simple, elige **Consultar factura**, `INV-1002` y ejecuta:
+   debe mostrar 344.400 COP, sin consultar el período previo. Luego cambia a
+   **Comparar con el mes anterior**, mantén `INV-1002` y el mensaje
+   `Compara mi factura con el mes anterior y explica la diferencia`.
+4. La factura de septiembre de 2026 tiene 420 kWh × 820 = **344.400 COP**;
+   agosto, 350 × 800 = **280.000 COP**. Diferencia: **64.400 COP**, descompuesta
+   en consumo **56.000 COP** y tarifa **8.400 COP**. Solo hay cargos por consumo.
+5. Consulta las referencias, los nueve nodos y las tres llamadas a herramientas.
+   La respuesta identifica explícitamente el modo determinista. Tokens y coste
+   permanecen `null`, mostrados como no reportados/no disponible.
+6. Intenta `INV-2002`: termina `denied / INVOICE_NOT_ACCESSIBLE`, sin evidencia.
+   Cierra sesión y entra con `DEMO_CUSTOMER_B_TOKEN`: esa factura sí está
+   autorizada para B; `INV-1002` queda denegada. B no puede consultar las trazas
+   del creator. El administrador tampoco puede consultar ejecuciones ajenas.
+7. Con el token creator, compara `INV-1001`: falta la factura de julio y la
+   herramienta de período anterior falla con `PREVIOUS_INVOICE_UNAVAILABLE`.
+   El run termina `escalated`; la traza muestra el intento fallido y `failure`,
+   sin devolver una comparación inventada. No modifica los datos de demo.
+8. Recarga e identifícate de nuevo: el historial y sus trazas están persistidos.
+
+Las tareas `invoice`, `compare` y `knowledge` tienen rutas explícitas. `auto`
+resuelve una intención básica mediante reglas, sin un clasificador LLM. En una
+consulta de tarifas/FAQ sin factura se usa el período indicado (por defecto
+septiembre de 2026). Para facturas se usa su período real. El mes anterior es
+el mes calendario inmediatamente anterior, no cualquier factura histórica.
+La falta de factura previa o tarifa vigente produce `escalated` sin inventar datos.
+
+Los documentos son datos sintéticos aprobados con versión y vigencia. Se
+consultan mediante SQL controlado; no hay búsqueda vectorial ni pipeline RAG.
+La identidad viene exclusivamente del token autenticado. Cada acceso vuelve a
+validar permisos del caller, permisos congelados del agente, grant, aprobación
+y definición exacta de modelo/herramienta. Al liberar la respuesta se revalida
+la evidencia, incluidas las revocaciones durante la generación.
+
+### Runtime API
+
+| Operación | Endpoint | Acceso |
+| --- | --- | --- |
+| Versiones disponibles y modos | `GET /api/v1/runtime/agents` | Solo grants explícitos del caller |
+| Ejecutar snapshot local | `POST /api/v1/runs` | Grant + políticas + propiedad de cada factura |
+| Historial | `GET /api/v1/runs` | Solo ejecuciones del caller |
+| Resultado persistido | `GET /api/v1/runs/{id}` | Solo caller; otro usuario recibe 404 |
+| Traza persistida | `GET /api/v1/runs/{id}/trace` | Solo caller; otro usuario recibe 404 |
+
+Ejemplo después de cargar los seeds; en una base nueva la versión es 1. Usa
+`GET /api/v1/runtime/agents` para elegir el número exacto si ya hay historial:
+
+```sh
+read -r -s BIA_TOKEN
+curl -fsS http://localhost:8000/api/v1/runs \
+  -H "Authorization: Bearer $BIA_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"agent_id":"billing-assistant","version":1,"mode":"deterministic","task":"compare","invoice_id":"INV-1002","message":"Explica la diferencia con agosto"}'
+# Sustituye el ID por el devuelto en la respuesta:
+curl -fsS 'http://localhost:8000/api/v1/runs/<run-id>/trace' \
+  -H "Authorization: Bearer $BIA_TOKEN"
+unset BIA_TOKEN
+# Prueba automática sin copiar tokens ni IDs:
+make runtime-smoke
+```
+
+`POST /runs` es síncrono y devuelve 201 cuando crea una ejecución durable,
+incluso si su resultado es `denied`, `failed` o `escalated`: comprueba `status`
+y `error_code`. Los rechazos de admisión usan 401/403/404/409/503 antes de crear
+una ejecución; una petición inválida devuelve 422. El cuerpo no admite
+`customer_id`, `caller_id`, permisos ni estado de LangGraph. La traza conserva
+nodos, tiempos medidos, intentos, argumentos tipados mínimos y referencias;
+no almacena el prompt, secretos ni respuestas completas de las herramientas.
+
+### Model Gateway con proveedor opcional
+
+El modo predeterminado es determinista y usa el modelo registrado
+`synthetic-balanced-v1`; nunca llama a LiteLLM. El modo `provider` exige:
+
+1. Un administrador registra y aprueba en `/models` un modelo real con proveedor
+   `openai` o `anthropic`, identificador exacto compatible con ese proveedor,
+   precios explícitos y capacidades `chat`, `tool_calling`, `structured_output`.
+   Usa un perfil libre (por ejemplo `advanced`) si `balanced` ya está aprobado.
+2. Configura `ENABLE_PROVIDER_RUNTIME=true` y `OPENAI_API_KEY` o
+   `ANTHROPIC_API_KEY` únicamente en `.env` del servidor. Ejecuta `make up`
+   para recrear la API con ese entorno. No añadas un prefijo de proveedor al
+   `model_identifier`: el gateway lo fija desde el catálogo aprobado.
+3. Provisiona una nueva versión congelada con el ID exacto del catálogo:
+
+   ```sh
+   docker compose run --rm migrate python -m app.runtime.seed --model-id ID_DEL_MODELO_APROBADO
+   ```
+
+4. Selecciona esa versión y `provider` en el Playground. El gateway utiliza
+   LiteLLM con credencial del servidor, modelo fijado, timeout y cero reintentos.
+   No admite una URL de proveedor enviada por el cliente ni fallback silencioso.
+
+El LLM ordena las afirmaciones y citas previamente calculadas por Python;
+debe copiarlas completas, sin añadir hechos. La salida JSON se valida y se
+rechaza si modifica números, referencias o intenta invocar herramientas. Esta
+primera integración prioriza evidencia verificable y tiene redacción limitada.
+Las herramientas se seleccionan mediante el workflow, nunca por instrucciones
+recibidas del modelo o de documentos. Solo se registran tokens reportados por
+el SDK; el coste es una estimación con los precios del snapshot cuando existen
+ambos conteos. La ausencia de uso reportado permanece `null`. Un fallo del
+proveedor termina en error controlado, sin convertirlo en respuesta determinista.
+
+La suite automatizada usa dobles en el límite del SDK y no consume saldo.
+En la [prueba real posterior](docs/sprint-3-provider-check.md), OpenAI aceptó
+la credencial para consultar el modelo, pero rechazó la generación con
+`429 / credit_balance_exhausted / insufficient_quota`. La ejecución quedó
+persistida como failed, sin fallback ni métricas inventadas. La generación
+exitosa sigue pendiente de agregar créditos a la organización API.
+
+En este Mac ya está aprobado `openai-gpt54-mini-20260317` y provisionado
+billing-assistant v2 con ese modelo. Después de habilitar saldo:
+
+```sh
+make up
+make provider-smoke
+open http://localhost:3000/playground
+```
+
+Selecciona **v2**, modo **Proveedor · LiteLLM**, comparación e `INV-1002`.
+`make provider-smoke` realiza una ejecución de proveedor y puede consumir saldo;
+no forma parte de `make verify` ni CI. v1 sigue disponible en modo determinista.
+La [definición JSON del modelo](docs/examples/openai-gpt54-mini.json) usa el
+snapshot y los precios de la [ficha oficial](https://developers.openai.com/api/docs/models/gpt-5.4-mini).
+No se registran ni aprueban modelos automáticamente al ejecutar el smoke.
 
 ## API y autorización
 
@@ -126,6 +277,55 @@ Los permisos se controlan en backend. Ser administrator no concede al propietari
 permisos de herramientas que no tenga asignados. Todos los usuarios activos
 pueden consultar el inventario interno y las configuraciones; editar un agente
 ajeno requiere administrator. No existe API para editar roles o concederse permisos.
+
+### Crear agente y configuración inicial en una petición
+
+`POST /api/v1/agents` admite un ID opcional: si se omite, genera uno único.
+Al enviar `model_profile`, crea también la versión 1 editable y sus relaciones
+en la misma transacción. `owner` es un alias de `owner_id` y debe ser un
+principal existente y autorizado; no crea un equipo ni concede permisos.
+
+Ejemplo compatible con los datos sintéticos incluidos:
+
+```sh
+# Introduce el valor de DEMO_CREATOR_TOKEN de .env, sin mostrarlo:
+read -r -s BIA_TOKEN
+curl -fsS http://localhost:8000/api/v1/agents \
+  -H "Authorization: Bearer $BIA_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "Billing Assistant",
+    "description": "Explica facturas a clientes",
+    "department": "customer_service",
+    "owner": "demo-creator",
+    "model_profile": "balanced",
+    "tools": ["invoice-lookup-v3"]
+  }'
+unset BIA_TOKEN
+```
+
+La respuesta 201 incluye `id`, `state: "DRAFT"` y `initial_configuration`, que
+apunta a `/api/v1/agents/<id-generado>/versions/1`. La cabecera `Location`
+apunta al agente. `status: "draft"` conserva el formato de los clientes
+existentes; `state` se calcula a partir del mismo estado, sin almacenarlo dos veces.
+
+Los nombres de herramientas se resuelven a IDs y versiones aprobadas. Si hay
+varias versiones aprobadas del mismo nombre, devuelve 409 y exige usar el ID
+exacto del catálogo. Si una selección no está aprobada o faltan permisos,
+revierte toda la creación. `search_billing_knowledge` se registra al ejecutar
+`make runtime-seed`; `billing-team` no es un propietario del seed.
+
+La configuración inicial usa la descripción (o el nombre) como objetivo e
+instrucciones de plantilla explícitas, sin generar contenido mediante un LLM.
+Sus límites se validan contra el modelo elegido y pueden editarse después.
+Enviar `tools` exige `model_profile`. Se mantiene el alta de solo metadatos
+usada por la interfaz: sin perfil, no crea una versión y devuelve
+`initial_configuration: null` hasta guardar la primera configuración.
+
+`PATCH /api/v1/agents/{id}` admite metadatos parciales y conserva los campos
+omitidos, por ejemplo `{"expected_revision":1,"description":"Nueva descripción"}`.
+Sigue exigiendo revisión actual y autorización; rechaza cambios vacíos, valores
+nulos y campos que intenten modificar configuración o privilegios.
 
 Ejemplo de creación de una versión con perfil resuelto por el servidor:
 
@@ -176,6 +376,8 @@ apps/
       identity/          # Identidades y autorización local explícita
       catalogs/          # Modelos y herramientas: modelos, schemas y rutas
       agents/            # Registry, configuraciones y versionamiento
+      billing/           # Facturas, contratos, adaptadores y cálculos Decimal
+      runtime/           # LangGraph, política, gateway, runs, trazas y seed
       core/config.py      # Variables de entorno validadas con Pydantic
       db/base.py          # Base declarativa y nombres de constraints
       db/session.py       # Engine y sesiones por petición
@@ -190,6 +392,7 @@ apps/
     tests/                # Pruebas con node:test
     Dockerfile
 scripts/smoke.py           # Verificación HTTP entre servicios
+scripts/runtime_smoke.py   # Ejecución real, evidencia y aislamiento por cliente
 tests/e2e/                # Flujos reales con Playwright
 .github/workflows/ci.yml   # Mismos checks con Docker en CI
 compose.yaml
@@ -214,6 +417,14 @@ mediante Compose o `make dev-web`.
 | `APP_ENV` | `development`, `test` o `production` |
 | `ENABLE_DEMO_AUTH` | `false` por defecto en código; `.env.example` la activa solo para demo local |
 | `DEMO_ADMIN_TOKEN`, `DEMO_CREATOR_TOKEN`, `DEMO_VIEWER_TOKEN` | Credenciales sintéticas para el seed explícito |
+| `DEMO_CUSTOMER_B_TOKEN` | Segundo cliente de facturación, mínimo 24 caracteres |
+| `ENABLE_LOCAL_RUNTIME` | `false` en código; habilita preview local explícito, bloqueado en producción |
+| `ENABLE_PROVIDER_RUNTIME` | `false`; requiere también modelo aprobado y credencial del servidor |
+| `RUNTIME_TIMEOUT_SECONDS` | 30 s; límite del servidor (máximo configurable 120 s) |
+| `MODEL_TIMEOUT_SECONDS` | 15 s; timeout del proveedor (máximo 60 s) |
+| `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` | Secretos opcionales solo del backend |
+| `LANGSMITH_TRACING`, `LANGCHAIN_TRACING_V2` | `false` en demo; sin exportación de trazas |
+| `LITELLM_LOCAL_MODEL_COST_MAP` | `True`; evita descargar precios remotos al importar el SDK |
 | `POSTGRES_DB` | `bia_studio` |
 | `POSTGRES_USER` | `bia` |
 | `POSTGRES_PASSWORD` | Credencial de desarrollo local |
@@ -249,6 +460,10 @@ Alembic crea `alembic_version` y guarda la revisión de forma transaccional.
 Estos impiden modificar/borrar snapshots y sus enlaces, cambiar definiciones de
 catálogo o introducir enlaces no aprobados/inconsistentes. La coherencia entre
 JSON y relaciones de herramientas se verifica al confirmar la transacción.
+`0003_agent_runtime` añade `invoices`, `billing_knowledge`, `agent_invocations`,
+`agent_runs`, `tool_calls` y `run_events`. Incluye restricciones monetarias,
+FKs de versión y triggers para grants a snapshots, identidad de ejecución
+inmutable, finalización consistente, runs finalizados inmutables y logs append-only.
 La prueba de integración usa un esquema temporal único y verifica:
 estado sin migrar → upgrade → repetición idempotente → ausencia de drift →
 downgrade a base → nuevo upgrade. El esquema temporal se elimina al terminar;
@@ -257,6 +472,7 @@ las tablas de la aplicación permanecen intactas.
 ```sh
 make migrate
 make seed
+make runtime-seed
 docker compose exec -T api alembic -c apps/api/alembic.ini current
 docker compose exec -T api alembic -c apps/api/alembic.ini check
 docker compose exec -T api alembic -c apps/api/alembic.ini upgrade head --sql
@@ -293,6 +509,7 @@ make install
 docker compose up -d --wait postgres
 uv run --frozen alembic -c apps/api/alembic.ini upgrade head
 PYTHONPATH=apps/api uv run --frozen python -m app.seed
+PYTHONPATH=apps/api uv run --frozen python -m app.runtime.seed
 ```
 
 En dos terminales, desde la raíz:
@@ -334,15 +551,23 @@ Las pruebas de integración crean y eliminan esquemas temporales únicos; no
 modifican los registros del entorno de demostración. Verifican persistencia,
 restricciones de base de datos, rollback, versionamiento, concurrencia,
 aprobaciones/revocaciones, acceso entre propietarios y SQL directo sobre snapshots.
+También ejecutan el StateGraph real, cálculos, timeouts de SQL y
+proveedor, fallos de herramientas, presupuestos, revocaciones y ataques de
+prompt injection sin sustituir la autorización.
 Playwright usa el stack real, sin mocks de API o autorización; deja agentes
 sintéticos `e2e-*` con historial para comprobar persistencia y elimina su modelo
-temporal. CI ejecuta `make verify` y los dos flujos de navegador con Chromium.
+temporal, además de ejecuciones sintéticas de facturación. CI está configurado
+para `make verify` y tres flujos de navegador con Chromium; no se ha ejecutado
+CI remoto durante esta entrega.
 
 ## Operación y diagnóstico
 
 ```sh
 make up           # Construir y arrancar; no ejecuta la suite
 make seed         # Cargar identidades y catálogos sintéticos explícitamente
+make runtime-seed # Provisionar facturas, adapters, snapshot y grants locales
+make runtime-smoke # Flujo determinista y rechazo de acceso entre clientes
+make provider-smoke # Prueba optativa contra proveedor; puede consumir saldo
 make test         # Pytest con PostgreSQL real
 make lint         # Ruff
 make web-check    # Build, ESLint, TypeScript y pruebas web en Docker
@@ -371,22 +596,28 @@ muestra la indisponibilidad y permite reintentar con **Actualizar estado**.
 
 ## Límites y dependencias
 
-Esta entrega cubre solo Sprint 1 y Sprint 2. La autenticación es una demo local
-explícita, no SSO de producción: el proceso rechaza `ENABLE_DEMO_AUTH=true` con
-`APP_ENV=production`. Sin un proveedor de identidad real, las APIs de gestión
-fallan cerradas cuando se desactiva la demo. No hay LangGraph, RAG, ejecución,
-evaluación ni publicación y no se requiere ninguna clave de proveedores.
+Esta entrega cubre los Sprints 1–3. La autenticación y los grants son una demo
+local explícita, no SSO de producción: el proceso rechaza autenticación demo o
+runtime local con `APP_ENV=production`. No hay evaluaciones, aprobaciones,
+publicación ni RAG. El flujo determinista no requiere claves de proveedores.
+La ejecución síncrona está acotada, sin workers, colas ni recuperación de
+checkpoints. Una interrupción abrupta del proceso puede dejar un run `running`;
+no se implementa reconciliación automática. Las facturas son hipotéticas y
+solo modelan cargos por consumo, sin impuestos ni cargos fijos.
 
 La base del Sprint 1 emplea CSS propio y un cliente ligero; se conserva para
-evitar una migración visual no necesaria a Tailwind/shadcn. La configuración no
-incluye referencias a workflows, conocimiento o evaluaciones aún inexistentes;
-los campos se añadirán con contratos y migraciones cuando esos módulos existan.
+evitar una migración visual no necesaria a Tailwind/shadcn. La configuración
+incorpora un workflow tipado y versionado
+(`billing_workflow_v1:1.0.0`); no hay un catálogo administrable de workflows
+ni un Knowledge Registry completo. Las referencias de conocimiento se fijan
+en cada ejecución con su versión y se comprueban antes de responder.
 
 La auditoría de npm durante la validación del 15 de octubre de 2026 mostró
 cero vulnerabilidades en dependencias de ejecución (`npm audit --omit=dev`)
 y cinco avisos altos derivados de `braces`, transitiva del tooling de ESLint
 de Next.js ([aviso del proyecto](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)).
-La versión publicada de `braces` sigue siendo 3.0.3, sin arreglo compatible;
-se conserva la configuración oficial y el pendiente queda documentado.
+La ruta de corrección propuesta por `npm audit` requiere cambiar a
+`eslint-config-next@14.2.35`, una versión mayor anterior a la del proyecto.
+Se conserva la configuración actual y el pendiente queda documentado.
 No ejecutes `npm audit fix --force`: propone degradar Next.js ESLint a una
 versión mayor anterior. Revisa `npm audit` al actualizar dependencias.

@@ -32,6 +32,14 @@ adelantar el runtime ni los controles de publicación de futuros sprints.
   aprobación, capacidades, límites y permisos en edición, clonación y snapshot.
   Una revocación bloquea nuevas configuraciones y snapshots; conserva el
   contenido histórico de los snapshots existentes.
+- Permitir crear agente y configuración inicial en una transacción mediante
+  `model_profile` y `tools`. El ID puede generarse en backend y `owner` es un
+  alias validado de `owner_id`. Los nombres de herramientas solo se resuelven
+  cuando hay una única versión aprobada; las referencias ambiguas requieren
+  un ID de catálogo. Mantener el alta de solo metadatos para clientes existentes.
+  Exponer `state` en mayúsculas y la referencia `initial_configuration`,
+  conservando `status` en minúsculas por compatibilidad. Ambos estados derivan
+  de la misma columna. Permitir PATCH parcial con revisión obligatoria.
 - Mantener definiciones de catálogo inmutables desde su creación; solo cambia
   su aprobación. Las modificaciones de contrato requieren otro registro/version.
   Un índice parcial permite un modelo aprobado por perfil. Se puede administrar

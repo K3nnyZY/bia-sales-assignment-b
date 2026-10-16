@@ -168,6 +168,7 @@ function ConfigurationForm({
     kind: "AgentConfiguration",
     objective,
     instructions,
+    ...(initial?.workflow ? { workflow: initial.workflow } : {}),
     model: { model_id: modelId, max_output_tokens: output },
     tool_ids: [...toolIds].sort(),
     required_capabilities: capabilities,

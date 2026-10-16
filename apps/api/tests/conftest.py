@@ -81,7 +81,17 @@ def studio(db_engine):
         with Session(db_engine) as session:
             yield session
 
-    app = create_app(Settings(_env_file=None, app_env="test", enable_demo_auth=True))
+    # Real developer credentials and flags must never enable network in this fixture.
+    app = create_app(
+        Settings(
+            _env_file=None,
+            app_env="test",
+            enable_demo_auth=True,
+            enable_provider_runtime=False,
+            openai_api_key=None,
+            anthropic_api_key=None,
+        )
+    )
     app.dependency_overrides[get_session] = sessions
     with TestClient(app) as test_client:
         yield test_client

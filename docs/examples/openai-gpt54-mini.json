@@ -1,0 +1,15 @@
+{
+  "id": "openai-gpt54-mini-20260317",
+  "name": "OpenAI GPT-5.4 Mini 2026-03-17",
+  "provider": "openai",
+  "model_identifier": "gpt-5.4-mini-2026-03-17",
+  "release": "2026-03-17",
+  "profile": "advanced",
+  "capabilities": ["chat", "tool_calling", "structured_output"],
+  "context_window": 400000,
+  "max_output_tokens": 128000,
+  "input_cost_per_million": "0.75",
+  "output_cost_per_million": "4.50",
+  "data_policy": "Local Sprint 3 validation: send only synthetic billing evidence to OpenAI. Server-managed credentials; no real customer data.",
+  "status": "pending"
+}
