@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { ContextHelp } from "../../components/help";
 import {
   Feedback,
   StudioShell,
@@ -47,6 +48,7 @@ function AgentList() {
       <section className="intro compact">
         <p className="eyebrow">AGENT REGISTRY</p>
         <h1>Agentes de tu organización.</h1>
+        <ContextHelp term="Agent" />
         <p>
           Define su propósito, selecciona capacidades aprobadas y conserva cada
           versión.

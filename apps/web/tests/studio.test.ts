@@ -107,6 +107,22 @@ test("validation errors identify the failing field", async (context) => {
   );
 });
 
+test("known error guidance preserves the backend code and unknown diagnoses stay untouched", async (context) => {
+  for (const code of ["STALE_REVISION", "HISTORY_EXISTS", "DELETE_NOT_ALLOWED", "UNKNOWN_ERROR", "constructor"]) {
+    context.mock.method(globalThis, "fetch", async () => Response.json(
+      { detail: { code, message: "Backend message" } }, { status: 409 },
+    ));
+    await assert.rejects(studioRequest("/agents/test-agent", "token", "DELETE"), (error: unknown) => {
+      assert.ok(error instanceof ApiError);
+      assert.equal(error.code, code);
+      assert.ok(error.message.startsWith("Backend message"));
+      if (["UNKNOWN_ERROR", "constructor"].includes(code)) assert.equal(error.message, "Backend message");
+      else assert.ok(error.message.length > "Backend message".length);
+      return true;
+    });
+  }
+});
+
 test("delete accepts empty 204 responses", async (context) => {
   context.mock.method(
     globalThis,

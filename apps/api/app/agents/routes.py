@@ -17,6 +17,7 @@ from app.agents.schemas import (
 )
 from app.db.session import DatabaseSession
 from app.governance.audit import record
+from app.governance.models import AuditEvent
 from app.identity.auth import CurrentUser
 
 router = APIRouter(prefix="/api/v1/agents", tags=["agents"])
@@ -82,11 +83,20 @@ def delete_agent(
 ):
     item = service.get_agent(session, agent_id, user, edit=True)
     service.check_revision(item.revision, expected_revision)
+    if item.status != "draft":
+        service.fail(409, "DELETE_NOT_ALLOWED", "Only draft agents without history may be deleted")
     if session.scalar(
         select(AgentVersion.number).where(AgentVersion.agent_id == agent_id).limit(1)
     ):
         service.fail(
             409, "HISTORY_EXISTS", "Agents with version history must be disabled, not deleted"
+        )
+    # Runs, approvals, publications and grants require a version (RESTRICT FKs).
+    # Metadata events use detached resource_id references and survive deletion;
+    # a directly linked event is retained and must also prevent deletion.
+    if session.scalar(select(AuditEvent.id).where(AuditEvent.agent_id == agent_id).limit(1)):
+        service.fail(
+            409, "HISTORY_EXISTS", "Linked audit history must be preserved; disable this agent"
         )
     record(session, user.id, "agent.deleted", resource_id=item.id, owner_id=item.owner_id)
     session.delete(item)

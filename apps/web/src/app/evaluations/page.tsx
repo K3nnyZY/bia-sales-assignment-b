@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { ContextHelp } from "../../components/help";
+import { checkMetadata, checkObservations, checkStatus } from "../../lib/evaluation-checks";
+import { gateGuidance } from "../../lib/help";
 import {
   Feedback,
   StudioShell,
@@ -131,6 +134,7 @@ function EvaluationCenter() {
       <section className="intro compact">
         <p className="eyebrow">QUALITY & GOVERNANCE</p>
         <h1>Evaluation Center.</h1>
+        <ContextHelp term="Evaluation" />
         <p>
           Evalúa un snapshot exacto, solicita revisión independiente y publica
           una versión autorizada.
@@ -225,6 +229,8 @@ function EvaluationCenter() {
                 <option value="provider">Proveedor real · LiteLLM</option>
               </select>
             </label>
+            {suite && <p className="hint">La suite fija las pruebas y su versión; no cambia la configuración del agente.</p>}
+            {suites.data?.length === 0 && <p className="notice">No hay suites disponibles. Solicita a un administrador o reviewer que registre una suite antes de evaluar.</p>}
             <button
               disabled={
                 busy ||
@@ -258,6 +264,7 @@ function EvaluationCenter() {
         </aside>
         <section className="panel">
           <h2>Publication Gate</h2>
+          <ContextHelp term="Publication Gate" />
           {!state && !governance.error && (
             <p role="status">Selecciona una versión; cargando gobernanza…</p>
           )}
@@ -283,6 +290,9 @@ function EvaluationCenter() {
                   ? "Gate aprobado para esta configuración."
                   : "Bloqueos: " + state.gate.reasons.join(", ")}
               </p>
+              {!state.gate.eligible && <ul>{state.gate.reasons.map((code) => (
+                <li key={code}>{gateGuidance[code] || "El backend ha bloqueado esta configuración; consulta el código y las evaluaciones."} <small>({code})</small></li>
+              ))}</ul>}
               <div className="actions">
                 <button
                   disabled={busy || !canSubmit || state.stage !== "testing"}
@@ -365,6 +375,7 @@ function EvaluationCenter() {
                 El backend rechaza la autoaprobación y vuelve a validar
                 permisos, hash, suite, modelo, herramientas y revisión vigente.
               </p>
+              <ContextHelp term="Approval" />
             </>
           )}
         </section>
@@ -414,6 +425,7 @@ function EvaluationCenter() {
       {detail.data && (
         <section className="panel">
           <h2>Resultados de la suite</h2>
+          <p className="hint">PASS: cumple la comprobación. FAIL: no cumple lo esperado. ERROR: el backend informa un error de ejecución, de comprobación o un timeout. Los códigos sin diagnóstico se conservan sin atribuirles una causa.</p>
           <p className="hash">
             {detail.data.evaluation.id}
             <br />
@@ -437,9 +449,35 @@ function EvaluationCenter() {
               <tbody>
                 {detail.data.results.map((r) => (
                   <tr key={r.check}>
-                    <td>{r.check}</td>
+                    <td>
+                      <details className="check-detail">
+                        <summary>{checkMetadata(r.check).name}</summary>
+                        <p>{checkMetadata(r.check).purpose}</p>
+                        <dl>
+                          <dt>Estado</dt><dd>{checkStatus(r)}</dd>
+                          <dt>Resultado esperado (contrato de la prueba)</dt><dd>{checkMetadata(r.check).expected}</dd>
+                          <dt>Resultado obtenido (backend)</dt>
+                          <dd>
+                            {checkObservations(r).length ? (
+                              <ul>{checkObservations(r).map(({ label, value }) => (
+                                <li key={label}>{label}: {value}</li>
+                              ))}</ul>
+                            ) : "No disponible: el backend no guardó observaciones reconocidas."}
+                            {Object.keys(r.details).length > 0 && (
+                              <details>
+                                <summary>Datos técnicos del backend</summary>
+                                <pre>{JSON.stringify(r.details, null, 2)}</pre>
+                              </details>
+                            )}
+                          </dd>
+                          <dt>Error informado</dt><dd>{r.error_code || "Sin error informado."}</dd>
+                        </dl>
+                        <p className="hint">Los importes obtenidos solo pueden consultarse en la traza cuando estén disponibles; no se deducen del contrato esperado.</p>
+                      </details>
+                      <small className="technical-id">{r.check}</small>
+                    </td>
                     <td>{r.critical ? "Sí" : "No"}</td>
-                    <td>{r.passed ? "PASS" : `FAIL · ${r.error_code}`}</td>
+                    <td><span className={`check-status ${checkStatus(r).toLowerCase()}`}>{checkStatus(r)}</span></td>
                     <td>{r.duration_ms} ms</td>
                     <td>
                       {r.run_id ? (

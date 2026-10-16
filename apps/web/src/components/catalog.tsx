@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { ContextHelp } from "./help";
 import { Feedback, StudioShell, useResource, useStudio } from "./studio";
 import type { CatalogModel, CatalogTool } from "../lib/studio";
 
@@ -98,6 +99,7 @@ function Catalog({ kind }: { kind: "models" | "tools" }) {
           Los registros sintéticos no invocan proveedores ni ejecutan
           herramientas.
         </p>
+        <ContextHelp term={kind === "models" ? "Model" : "Tools"} />
       </section>
       <Feedback error={error || items.error} success={success} />
       <section className="panel">

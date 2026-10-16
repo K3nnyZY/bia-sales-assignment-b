@@ -4,6 +4,23 @@
   --muted: #5b716c;
   --line: #dce5df;
 }
+.context-help { margin: 8px 0 16px; font-size: 13px; color: var(--muted); }
+.context-help summary { cursor: help; width: fit-content; }
+.context-help[open] p { padding: 12px; border-left: 3px solid var(--ink); background: #edf3ef; max-width: 70ch; }
+.technical-id { display: block; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.glossary { margin-top: 32px; }
+dt { font-weight: 600; margin-top: 12px; }
+dd { margin: 6px 0 14px; }
+.check-detail { min-width: 190px; max-width: 60ch; }
+.check-detail summary { cursor: pointer; font-weight: 600; }
+.check-detail pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.check-status { font-weight: 700; padding: 4px 8px; border-radius: 4px; }
+.check-status.pass { color: #1c563d; background: #e0f2e8; }
+.check-status.fail { color: #8a3911; background: #fff0d9; }
+.check-status.error { color: #981f2a; background: #fce4e7; }
+dialog { border: 1px solid var(--line); border-radius: 14px; padding: 24px; width: min(520px, calc(100% - 32px)); color: var(--ink); }
+dialog::backdrop { background: rgb(0 20 15 / 45%); }
+.notification { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .runtime-answer {
   white-space: pre-wrap;
   overflow-wrap: anywhere;

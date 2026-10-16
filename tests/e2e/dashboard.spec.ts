@@ -18,6 +18,17 @@ async function login(page: Page, role: "VIEWER" | "CREATOR") {
 test("dashboard displays scoped backend metrics, empty states and real trace links", async ({
   page,
 }) => {
+  // Create our own persisted run; a clean seeded database has no executions.
+  const fixture = await page.request.post("/api/studio/runs", {
+    headers: { Authorization: `Bearer ${process.env.DEMO_CREATOR_TOKEN}` },
+    data: {
+      agent_id: "billing-assistant", version: 1, mode: "deterministic",
+      channel: "preview", task: "invoice", invoice_id: "INV-1002",
+      message: "Consulta autorizada sintética para comprobar el dashboard",
+    },
+  });
+  expect(fixture.status()).toBe(201);
+  expect((await fixture.json()).status).toBe("completed");
   const viewer = await login(page, "VIEWER");
   expect(viewer.runs).toBe(0);
   await expect(page.getByTestId("metric-runs")).toHaveText("0");

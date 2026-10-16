@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { studioRequest, type Principal } from "../lib/studio";
+import { StudioGlossary } from "./help";
 
 type Api = <T>(path: string, method?: string, body?: unknown) => Promise<T>;
 type Session = {
@@ -18,12 +19,15 @@ type Session = {
   api: Api;
   login: (token: string) => Promise<void>;
   logout: () => void;
+  notify: (message: string) => void;
+  notification: string;
 };
 const StudioContext = createContext<Session | null>(null);
 
 export function StudioProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState("");
   const [user, setUser] = useState<Principal | null>(null);
+  const [notification, notify] = useState("");
   const api: Api = useCallback(
     (path, method, body) => studioRequest(path, token, method, body),
     [token],
@@ -36,9 +40,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   function logout() {
     setToken("");
     setUser(null);
+    notify("");
   }
   return (
-    <StudioContext.Provider value={{ user, api, login, logout }}>
+    <StudioContext.Provider
+      value={{ user, api, login, logout, notify, notification }}
+    >
       {children}
     </StudioContext.Provider>
   );
@@ -157,7 +164,7 @@ function Login() {
 }
 
 export function StudioShell({ children }: { children: ReactNode }) {
-  const { user, logout } = useStudio();
+  const { user, logout, notification, notify } = useStudio();
   return (
     <main>
       <SiteHeader />
@@ -171,7 +178,20 @@ export function StudioShell({ children }: { children: ReactNode }) {
               Salir
             </button>
           </div>
+          {notification && (
+            <div className="notification">
+              <Feedback success={notification} />
+              <button
+                className="secondary"
+                aria-label="Cerrar notificación"
+                onClick={() => notify("")}
+              >
+                Cerrar
+              </button>
+            </div>
+          )}
           {children}
+          <StudioGlossary />
         </>
       ) : (
         <Login />

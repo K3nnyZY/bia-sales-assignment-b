@@ -1,6 +1,7 @@
 "use client";
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { ContextHelp } from "../../components/help";
 import { Feedback, StudioShell, useResource } from "../../components/studio";
 import { TraceView } from "../../components/trace";
 import { MetricsPanel } from "../../components/metrics";
@@ -21,6 +22,7 @@ function TraceCenter() {
       <section className="intro compact">
         <p className="eyebrow">OBSERVABILIDAD</p>
         <h1>Traces & Audit.</h1>
+        <ContextHelp term="Trace" />
         <p>
           Ejecuciones, mediciones e historial persistidos. Cada consulta aplica
           permisos en el backend.

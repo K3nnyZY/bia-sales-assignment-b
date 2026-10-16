@@ -1,3 +1,5 @@
+import { errorGuidance } from "./help.ts";
+
 export type Principal = {
   id: string;
   name: string;
@@ -80,10 +82,13 @@ export type AgentVersion = {
 
 export class ApiError extends Error {
   status: number;
+  code?: string;
 
-  constructor(status: number, message: string) {
-    super(message);
+  constructor(status: number, message: string, code?: string) {
+    const guidance = code && Object.hasOwn(errorGuidance, code) ? errorGuidance[code] : undefined;
+    super(guidance ? `${message} ${guidance}` : message);
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -120,6 +125,7 @@ export async function studioRequest<T>(
   });
   if (!response.ok) {
     let message = `HTTP ${response.status}`;
+    let code: string | undefined;
     try {
       const result = await response.json();
       if (Array.isArray(result.detail))
@@ -129,11 +135,15 @@ export async function studioRequest<T>(
               `${item.loc.join(".")}: ${item.msg}`,
           )
           .join("; ");
-      else message = result.detail?.message || result.detail || message;
+      else {
+        code =
+          typeof result.detail?.code === "string" ? result.detail.code : undefined;
+        message = result.detail?.message || result.detail || message;
+      }
     } catch {
       /* Preserve the HTTP status when the response is not JSON. */
     }
-    throw new ApiError(response.status, String(message));
+    throw new ApiError(response.status, String(message), code);
   }
   return response.status === 204 ? (undefined as T) : response.json();
 }

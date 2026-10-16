@@ -11,6 +11,8 @@ from app.agents.models import Agent, AgentTool, AgentVersion
 from app.agents.service import configuration_hash
 from app.catalogs.models import Model, Tool
 from app.catalogs.schemas import ModelCreate
+from app.governance.audit import record
+from app.governance.models import AuditEvent
 from app.identity.models import User
 from app.seed import seed
 
@@ -94,9 +96,80 @@ def test_agent_crud_and_persistence(studio, db_engine):
     )
     assert (
         studio.delete("/api/v1/agents/test-agent?expected_revision=2", headers=auth()).status_code
+        == 409
+    )
+    restored = studio.patch(
+        "/api/v1/agents/test-agent",
+        headers=auth(),
+        json={"expected_revision": 2, "status": "draft"},
+    )
+    assert restored.status_code == 200
+    assert (
+        studio.delete("/api/v1/agents/test-agent?expected_revision=3", headers=auth()).status_code
         == 204
     )
     assert studio.get("/api/v1/agents/test-agent", headers=auth()).status_code == 404
+
+
+@pytest.mark.parametrize("status", ["disabled", "deprecated"])
+def test_delete_rejects_non_draft_even_for_administrator(studio, db_engine, status):
+    new_agent(studio)
+    result = studio.patch(
+        "/api/v1/agents/test-agent",
+        headers=auth(),
+        json={"expected_revision": 1, "status": status},
+    )
+    assert result.status_code == 200
+    response = studio.delete(
+        "/api/v1/agents/test-agent?expected_revision=2", headers=auth("administrator")
+    )
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "DELETE_NOT_ALLOWED"
+    with Session(db_engine) as session:
+        assert session.get(Agent, "test-agent").status == status
+        assert not session.scalar(select(AuditEvent).where(AuditEvent.action == "agent.deleted"))
+
+
+def test_delete_retains_editable_versions_and_linked_audit(studio, db_engine):
+    new_agent(studio)
+    version = new_version(studio)
+    response = studio.delete("/api/v1/agents/test-agent?expected_revision=1", headers=auth())
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "HISTORY_EXISTS"
+    assert studio.get("/api/v1/agents/test-agent/versions/1", headers=auth()).json() == version
+    new_agent(studio, "linked-audit-agent")
+    with Session(db_engine) as session:
+        record(session, "demo-creator", "policy.reviewed", "linked-audit-agent")
+        session.commit()
+    response = studio.delete(
+        "/api/v1/agents/linked-audit-agent?expected_revision=1", headers=auth()
+    )
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "HISTORY_EXISTS"
+    with Session(db_engine) as session:
+        assert session.get(Agent, "linked-audit-agent") is not None
+        assert session.scalar(select(AuditEvent).where(AuditEvent.action == "policy.reviewed"))
+
+
+def test_delete_missing_auth_and_revision_do_not_mutate(studio, db_engine):
+    new_agent(studio)
+    path = "/api/v1/agents/test-agent"
+    for headers in [{}, auth("inactive")]:
+        assert studio.delete(path + "?expected_revision=1", headers=headers).status_code == 401
+    for query in ["", "?expected_revision=0", "?expected_revision=-1"]:
+        assert studio.delete(path + query, headers=auth()).status_code == 422
+    assert studio.delete(path + "?expected_revision=2", headers=auth()).status_code == 409
+    assert (
+        studio.delete(path + "?expected_revision=1", headers=auth("administrator")).status_code
+        == 204
+    )
+    assert studio.delete(path + "?expected_revision=1", headers=auth()).status_code == 404
+    with Session(db_engine) as session:
+        assert session.get(Agent, "test-agent") is None
+        events = session.scalars(
+            select(AuditEvent).where(AuditEvent.action == "agent.deleted")
+        ).all()
+        assert len(events) == 1 and events[0].details["owner_id"] == "demo-creator"
 
 
 def test_cross_user_and_viewer_mutations_forbidden(studio):

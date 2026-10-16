@@ -89,6 +89,20 @@ def test_full_publication_runtime_audit(governed, db_engine):
     assert run["calculations"]["difference_cop"] == "64400.00"
     assert run["channel"] == "published" and run["evaluation_id"] is None
     assert get(client, "/runs/" + run["id"] + "/trace", "auditor")["tool_calls"]
+    # Logical Agent.status remains draft after publication: it is not sufficient
+    # to decide deletion. All version/run/approval history must remain intact.
+    agent_before = get(client, "/agents/billing-assistant")
+    assert agent_before["status"] == "draft"
+    denied_delete = client.delete(
+        "/api/v1/agents/billing-assistant",
+        headers=auth("administrator"),
+        params={"expected_revision": agent_before["revision"]},
+    )
+    assert denied_delete.status_code == 409
+    assert denied_delete.json()["detail"]["code"] == "HISTORY_EXISTS"
+    assert get(client, "/agents/billing-assistant") == agent_before
+    assert get(client, BASE + "/governance")["stage"] == "published"
+    assert get(client, "/runs/" + run["id"] + "/trace", "auditor")["run"]["id"] == run["id"]
     assert client.get("/api/v1/runs/" + run["id"], headers=auth("administrator")).status_code == 404
     metrics = get(client, "/metrics")
     assert metrics["runs"] == 1 and metrics["models"][0]["input_tokens"] is None

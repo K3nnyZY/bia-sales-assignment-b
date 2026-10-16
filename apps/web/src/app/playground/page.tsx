@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ContextHelp } from "../../components/help";
 import { useState, type FormEvent } from "react";
 import {
   Feedback,
@@ -72,6 +73,7 @@ function Playground() {
       <section className="intro compact">
         <p className="eyebrow">AGENT RUNTIME</p>
         <h1>Playground de facturación.</h1>
+        <ContextHelp term="Runtime" />
         <p>
           Ejecuta una versión congelada con acceso explícito y consulta su
           respuesta y traza reales.

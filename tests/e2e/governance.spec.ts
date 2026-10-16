@@ -66,6 +66,15 @@ test("configure, evaluate, independently approve, publish, execute and audit", a
   await expect(
     page.getByRole("cell", { name: "PASS", exact: true }),
   ).toHaveCount(9);
+  const invoiceCheck = page.locator("tr").filter({ has: page.locator("summary").filter({ hasText: "Consulta de factura autorizada" }) });
+  await invoiceCheck.getByText("Consulta de factura autorizada", { exact: true }).click();
+  await expect(invoiceCheck).toContainText("Resultado esperado (contrato de la prueba)");
+  await expect(invoiceCheck).toContainText("Resultado obtenido (backend)");
+  await expect(invoiceCheck).toContainText("Ejecución: Completada");
+  await expect(invoiceCheck).toContainText("Llamadas a herramientas: 2");
+  await invoiceCheck.getByText("Datos técnicos del backend", { exact: true }).click();
+  await expect(invoiceCheck.locator("pre")).toContainText('"status": "completed"');
+  await expect(invoiceCheck.getByRole("link", { name: "Abrir traza" })).toBeVisible();
   await page
     .getByRole("button", { name: "Solicitar aprobación", exact: true })
     .click();

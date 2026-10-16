@@ -79,3 +79,15 @@ de base de datos y operaciones que requerirá un despliegue real.
 No se implementan estados TESTING/PENDING_APPROVAL/PUBLISHED, evaluación,
 aprobación, LangGraph, RAG, ejecución, llamadas a proveedores ni acceso a
 facturas reales. Los snapshots no deben utilizarse como permiso para ejecutar.
+
+## Aclaración posterior — eliminación de borradores
+
+El DELETE existente se restringe a agentes lógicos `draft`, con revisión actual
+y sin ninguna versión ni evento de auditoría directamente vinculado. Mantiene
+el bloqueo por agente usado al crear versiones y las FKs RESTRICT como defensa
+de integridad. Las versiones editables también tienen historial y se conservan.
+La publicación no cambia necesariamente `Agent.status`; el historial de versiones
+impide eliminar incluso un agente publicado cuyo registro lógico siga en draft.
+Los eventos desacoplados de metadatos sobreviven y la eliminación se audita.
+El frontend confirma el nombre, explica la irreversibilidad y recarga los datos
+tras conflictos. No se añade un borrado en cascada ni se cambia la base de datos.

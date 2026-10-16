@@ -41,6 +41,7 @@ test("create, edit, snapshot, clone and reload a persisted agent", async ({
   await expect(
     page.getByRole("heading", { name: "Versión 1 · draft", exact: true }),
   ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Eliminar agente", exact: true })).toHaveCount(0);
   await page
     .getByRole("textbox", { name: "Instrucciones", exact: true })
     .fill("Updated approved instructions.");

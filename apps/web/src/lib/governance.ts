@@ -43,7 +43,7 @@ export type EvaluationDetail = {
     critical: boolean;
     passed: boolean;
     error_code: string | null;
-    details: object;
+    details: Record<string, unknown>;
     run_id: string | null;
     duration_ms: number;
   }[];

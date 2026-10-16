@@ -440,6 +440,32 @@ de configuración; `deprecated` es terminal. Las versiones admiten `draft` y
 se elimina: se deshabilita para conservar el historial. La transferencia de
 propiedad es administrativa, revalida los borradores y se bloquea si hay snapshots.
 
+### Ayuda, evaluaciones y eliminación segura
+
+La ayuda contextual se abre con ratón, teclado o toque; el glosario explica los
+conceptos de configuración, evaluación, aprobación y ejecución. Los errores
+conocidos añaden un siguiente paso sin sustituir el código ni mensaje de la API.
+
+Evaluation Center muestra nombres comprensibles para las nueve pruebas de billing.
+Expande una prueba para consultar propósito, contrato esperado, detalles realmente
+persistidos, error y enlace a la traza disponible. El contrato esperado es ayuda
+del evaluador, no un resultado obtenido. `PASS` indica comprobación superada;
+`FAIL`, una aserción no satisfecha; `ERROR`, `CHECK_ERROR`, `EVALUATION_TIMEOUT`
+o una ejecución marcada como `failed`. Los datos ausentes se indican como no
+disponibles y las pruebas desconocidas conservan su identificador sin inventar
+su propósito ni diagnóstico.
+
+El botón **Eliminar agente** aparece para el propietario creator o administrador
+cuando el agente está en `draft` y no tiene versiones. Exige confirmación con el
+nombre del agente. `DELETE /api/v1/agents/{id}?expected_revision=N` revalida
+autorización, revisión, estado e historial bajo bloqueo en el servidor. Se conserva
+la política existente: **también las versiones editables impiden borrar el agente**,
+pues tienen historial de auditoría que debe preservarse. Los agentes con historial
+pueden deshabilitarse desde Identidad y estado. La eliminación conserva los eventos
+de metadatos y registra `agent.deleted`. No requiere una migración nueva.
+
+Ver [detalles y verificación de UX](docs/ux-context-evaluations-deletion.md).
+
 ## Estructura
 
 ```text

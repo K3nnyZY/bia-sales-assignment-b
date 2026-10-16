@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { ContextHelp } from "../../../components/help";
+import { DeleteAgentDialog } from "../../../components/delete-agent-dialog";
 import {
   Feedback,
   StudioShell,
@@ -60,6 +62,11 @@ function MetadataForm({
       <h2>Identidad y estado</h2>
       <p className="hint">
         Propietario: {agent.owner_id} · revisión {agent.revision}
+      </p>
+      <p className="hint">
+        Nombre y descripción identifican el propósito; departamento organiza el
+        inventario. El propietario es responsable de configurar el agente.
+        Transferirlo requiere un administrador y no concede permisos de negocio.
       </p>
       <form onSubmit={save}>
         <fieldset disabled={!editable || busy}>
@@ -286,6 +293,10 @@ function ConfigurationForm({
               maxLength={12000}
             />
           </label>
+          <p className="hint">
+            El objetivo indica qué resolver; las instrucciones orientan la
+            respuesta y nunca conceden permisos.
+          </p>
           <label>
             Workflow
             <select
@@ -297,6 +308,7 @@ function ConfigurationForm({
               <option value="billing">Billing StateGraph · v1.0.0</option>
             </select>
           </label>
+          <ContextHelp term="Workflow" />
           <p className="hint">
             Billing requiere get_customer_invoice v3, get_previous_invoice v1,
             search_billing_knowledge v1 (legacy) o v2 (RAG con documentos
@@ -338,6 +350,7 @@ function ConfigurationForm({
               ))}
             </select>
           </label>
+          <ContextHelp term="Model" />
           <fieldset className="choices">
             <legend>Capacidades requeridas</legend>
             {["chat", "tool_calling", "structured_output", "vision"].map(
@@ -355,6 +368,12 @@ function ConfigurationForm({
               ),
             )}
           </fieldset>
+          <p className="hint">
+            chat: generar texto; tool_calling: utilizar contratos de herramientas;
+            structured_output: salida estructurada; vision: procesar imágenes.
+            El backend exige que el modelo soporte las capacidades seleccionadas.
+          </p>
+          <ContextHelp term="Tools" />
           <fieldset className="choices">
             <legend>Herramientas aprobadas</legend>
             {tools
@@ -367,9 +386,10 @@ function ConfigurationForm({
                     onChange={() => toggle(tool.id, toolIds, setToolIds)}
                   />
                   <span>
-                    {tool.name} · v{tool.version}
+                    {tool.description || tool.name}
+                    <small>{tool.name} · v{tool.version}</small>
                     <small>
-                      {tool.permissions.join(", ") ||
+                      Permisos requeridos: {tool.permissions.join(", ") ||
                         "Sin permisos adicionales"}
                     </small>
                   </span>
@@ -437,6 +457,12 @@ function ConfigurationForm({
             </label>
           </div>
           <p className="hint">
+            Tokens de salida: longitud máxima de la respuesta, dentro del
+            límite aprobado del modelo. Pasos: máximo de nodos del workflow.
+            Llamadas: presupuesto total de herramientas. Tiempo: duración
+            máxima de la ejecución, también limitada por el servidor.
+          </p>
+          <p className="hint">
             Autenticación obligatoria · recursos del solicitante · sin
             escrituras financieras. Los permisos se derivan en el servidor.
           </p>
@@ -487,6 +513,7 @@ function ConfigurationForm({
         </div>
       )}
       <Feedback error={error} />
+      <ContextHelp term="Snapshot" />
       {version?.config_hash && (
         <p className="hash">SHA-256: {version.config_hash}</p>
       )}
@@ -507,7 +534,7 @@ function ConfigurationForm({
 function AgentDetail() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
-  const { api, user } = useStudio();
+  const { api, user, notify } = useStudio();
   const agent = useResource<Agent>(`/agents/${id}`);
   const versions = useResource<AgentVersion[]>(`/agents/${id}/versions`);
   const models = useResource<CatalogModel[]>("/models");
@@ -516,6 +543,7 @@ function AgentDetail() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [busy, setBusy] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const current =
     versions.data?.find((version) => version.number === selected) ||
     versions.data?.[0] ||
@@ -529,7 +557,7 @@ function AgentDetail() {
     versions.refresh();
   }
   async function remove() {
-    if (!agent.data) return;
+    if (!agent.data || busy) return;
     setBusy(true);
     setError("");
     try {
@@ -537,9 +565,13 @@ function AgentDetail() {
         `/agents/${id}?expected_revision=${agent.data.revision}`,
         "DELETE",
       );
+      notify(`Agente «${agent.data.name}» eliminado correctamente.`);
       router.push("/agents");
     } catch (err) {
       setError((err as Error).message);
+      setConfirmDelete(false);
+      agent.refresh();
+      versions.refresh();
     } finally {
       setBusy(false);
     }
@@ -552,7 +584,8 @@ function AgentDetail() {
         <Link href="/agents">← Inventario de agentes</Link>
         <h1>{agent.data?.name || "Detalle del agente"}</h1>
         <Link href="/evaluations">Evaluaciones y publicación</Link>
-        <p>{id}</p>
+        <p className="technical-id">Identificador: {id}</p>
+        <ContextHelp term="Agent" />
       </section>
       <Feedback error={loadError || error} success={success} />
       {loadError && (
@@ -591,14 +624,21 @@ function AgentDetail() {
                   v{version.number} · {version.status}
                 </button>
               ))}
-              {editable && versions.data.length === 0 && (
+              {editable && agent.data.status === "draft" && versions.data.length === 0 && (
                 <button
                   className="danger"
                   disabled={busy}
-                  onClick={() => void remove()}
+                  onClick={() => setConfirmDelete(true)}
                 >
-                  Eliminar agente sin historial
+                  Eliminar agente
                 </button>
+              )}
+              {editable && (agent.data.status !== "draft" || versions.data.length > 0) && (
+                <p className="hint">
+                  La eliminación no está permitida: solo se eliminan borradores
+                  sin versiones ni historial protegido. Conserva el historial y
+                  deshabilita el agente desde Identidad y estado.
+                </p>
               )}
             </section>
           </aside>
@@ -613,6 +653,14 @@ function AgentDetail() {
         </div>
       ) : (
         !loadError && <p role="status">Cargando configuración…</p>
+      )}
+      {confirmDelete && agent.data && (
+        <DeleteAgentDialog
+          name={agent.data.name}
+          busy={busy}
+          cancel={() => setConfirmDelete(false)}
+          confirm={() => void remove()}
+        />
       )}
     </>
   );
