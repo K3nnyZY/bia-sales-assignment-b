@@ -173,6 +173,19 @@ def validate_configuration(
             fail(403, "WRITE_NOT_ALLOWED", "This milestone permits read-only tool configurations")
         if not set(tool.permissions) <= set(owner.permissions):
             fail(403, "TOOL_PERMISSION", "The owner lacks a required tool permission")
+    if config.knowledge is not None:
+        from app.knowledge.runtime import RAG_TOOL_ID
+        from app.knowledge.service import pinned_documents
+
+        if RAG_TOOL_ID not in config.tool_ids or "billing-knowledge-v1" in config.tool_ids:
+            fail(
+                422,
+                "KNOWLEDGE_TOOL_REQUIRED",
+                "Knowledge configurations require only the v2 retrieval adapter",
+            )
+        pinned_documents(session, config.knowledge, owner.id)
+    elif "billing-knowledge-v2" in config.tool_ids:
+        fail(422, "KNOWLEDGE_REQUIRED", "Pin approved document versions for retrieval")
     canonical = config.model_dump(mode="json", exclude_none=True)
     canonical["model"] = {"model_id": model.id, "max_output_tokens": config.model.max_output_tokens}
     canonical["tool_ids"] = sorted(config.tool_ids)
@@ -265,6 +278,12 @@ def freeze_version(session: Session, agent: Agent, version: AgentVersion) -> Age
             "allow_financial_writes": False,
         },
     }
+    if version.configuration.get("knowledge"):
+        from app.knowledge.service import pinned_documents
+
+        snapshot["knowledge"] = pinned_documents(
+            session, AgentConfiguration.model_validate(version.configuration).knowledge, owner.id
+        )
     version.snapshot = snapshot
     version.config_hash = configuration_hash(snapshot)
     version.status = "snapshot"

@@ -4,6 +4,7 @@ from sqlalchemy import select
 from app.catalogs.models import Model, Tool
 from app.catalogs.schemas import ModelCreate, StatusUpdate, ToolCreate, UserRead
 from app.db.session import DatabaseSession
+from app.governance.audit import record
 from app.identity.auth import CurrentUser, require_admin
 from app.identity.models import User
 
@@ -59,7 +60,17 @@ def add_model(data: ModelCreate, session: DatabaseSession, user: CurrentUser):
 def approve_model(item_id: str, data: StatusUpdate, session: DatabaseSession, user: CurrentUser):
     require_admin(user)
     item = catalog_item(session, Model, item_id)
+    previous = item.status
     item.status = data.status
+    record(
+        session,
+        user.id,
+        "catalog.status_changed",
+        resource_type=item.__tablename__,
+        resource_id=item.id,
+        previous_status=previous,
+        status=data.status,
+    )
     session.commit()
     return item
 
@@ -101,7 +112,17 @@ def add_tool(data: ToolCreate, session: DatabaseSession, user: CurrentUser):
 def approve_tool(item_id: str, data: StatusUpdate, session: DatabaseSession, user: CurrentUser):
     require_admin(user)
     item = catalog_item(session, Tool, item_id)
+    previous = item.status
     item.status = data.status
+    record(
+        session,
+        user.id,
+        "catalog.status_changed",
+        resource_type=item.__tablename__,
+        resource_id=item.id,
+        previous_status=previous,
+        status=data.status,
+    )
     session.commit()
     return item
 

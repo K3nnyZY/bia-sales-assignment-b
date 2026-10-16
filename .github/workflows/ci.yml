@@ -18,7 +18,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
-      - name: Verify management and runtime browser flows
+      - name: Verify management, runtime, governance and knowledge browser flows
         run: |
           npm ci
           npx playwright install --with-deps chromium

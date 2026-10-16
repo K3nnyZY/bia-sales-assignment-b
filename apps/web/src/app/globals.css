@@ -457,3 +457,11 @@ summary {
     gap: 14px;
   }
 }
+
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1rem; margin: 1rem 0; }
+.metric-grid > div { display: flex; flex-direction: column; gap: .5rem; padding: 1rem; border: 1px solid var(--border, #deddd7); border-radius: 8px; }
+.metric-grid strong { font-size: 1.6rem; }
+
+.metrics-panel,
+.dashboard-panel { margin-top: 24px; }
+.dashboard-run > div { min-width: 0; overflow-wrap: anywhere; }

@@ -10,6 +10,9 @@ from app.api.health import router as health_router
 from app.catalogs.routes import router as catalogs_router
 from app.core.config import Settings
 from app.db.session import build_engine
+from app.governance.routes import router as governance_router
+from app.knowledge.routes import router as knowledge_router
+from app.knowledge.upload_limit import KnowledgeUploadLimit
 from app.runtime.routes import router as runtime_router
 
 
@@ -24,7 +27,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         finally:
             app.state.engine.dispose()
 
-    app = FastAPI(title="BIA Agent Studio API", version="0.3.0", lifespan=lifespan)
+    app = FastAPI(title="BIA Agent Studio API", version="0.5.0", lifespan=lifespan)
     app.state.settings = config
 
     @app.exception_handler(IntegrityError)
@@ -40,6 +43,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             },
         )
 
+    app.add_middleware(KnowledgeUploadLimit)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=config.cors_origins,
@@ -50,7 +54,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health_router)
     app.include_router(catalogs_router)
     app.include_router(agents_router)
+    app.include_router(knowledge_router)
     app.include_router(runtime_router)
+    app.include_router(governance_router)
     return app
 
 

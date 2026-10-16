@@ -12,7 +12,7 @@ from app.db.session import DatabaseSession
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["health"])
 # Update alongside migrations; readiness requires the deployed schema revision.
-SCHEMA_REVISION = "0003_agent_runtime"
+SCHEMA_REVISION = "0005_knowledge_rag"
 
 
 class HealthResponse(BaseModel):
@@ -31,7 +31,10 @@ def health() -> HealthResponse:
 def readiness(response: Response, session: DatabaseSession) -> HealthResponse:
     try:
         session.execute(text("SELECT 1"))
-        heads = MigrationContext.configure(session.connection()).get_current_heads()
+        heads = MigrationContext.configure(
+            session.connection(),
+            opts={"version_table_schema": session.scalar(text("SELECT current_schema()"))},
+        ).get_current_heads()
     except SQLAlchemyError:
         # Do not return connection details or credentials in errors/log messages.
         logger.warning("Database readiness check failed")

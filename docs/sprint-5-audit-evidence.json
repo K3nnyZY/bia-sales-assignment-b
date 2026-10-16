@@ -1,0 +1,69 @@
+{
+  "agent_id": "s5-audit-f591c0b050de",
+  "version": 1,
+  "config_hash": "e6a1568617e2a6978b1eec9763c678de7621ecd8d0677569e698cac5c17a22e0",
+  "documents": [
+    {
+      "document_id": "s5-audit-f591c0b050de-txt",
+      "format": "txt",
+      "extracted_characters": 1188,
+      "versions": 1,
+      "chunks": 2,
+      "vectors_hash": "80c9e2df6998a1b8d8d38ed3381c6ab6c3810eba50db5e7778fad91e4ba07014",
+      "physical_vector_type": "vector(256)",
+      "real_embeddings_match_database": true
+    },
+    {
+      "document_id": "s5-audit-f591c0b050de-md",
+      "format": "md",
+      "extracted_characters": 1187,
+      "versions": 1,
+      "chunks": 2,
+      "vectors_hash": "0a288e8d945ec99f9a502174e6c7c5138f1ccbd047bfe121604b325e08416bb3",
+      "physical_vector_type": "vector(256)",
+      "real_embeddings_match_database": true
+    },
+    {
+      "document_id": "s5-audit-f591c0b050de-pdf",
+      "format": "pdf",
+      "extracted_characters": 1188,
+      "versions": 1,
+      "chunks": 2,
+      "vectors_hash": "a38eda99de8d6bc640805a5586870bbdd46b459797422d04eb0fea7264eeaa37",
+      "physical_vector_type": "vector(256)",
+      "real_embeddings_match_database": true
+    }
+  ],
+  "embedding_version": "model2vec-0.7.0:minishlab/potion-multilingual-128M@73908c3438cf03b6a01bcb9611d62b23d0726f08:256",
+  "date_filter_counts": {
+    "2026-07-31": 0,
+    "2026-08-01": 6,
+    "2026-09-30": 6,
+    "2026-10-01": 0
+  },
+  "unauthorized_http_status": 403,
+  "search_id": "search-9e2fcf56f8414cf0a8a09f1120fc4413",
+  "run_id": "run-afc08307f91f46b2a4a3a09c91eb7971",
+  "persisted_citations": [
+    "s5-audit-f591c0b050de-pdf@1#chunk-0",
+    "s5-audit-f591c0b050de-txt@1#chunk-0",
+    "s5-audit-f591c0b050de-md@1#chunk-0",
+    "s5-audit-f591c0b050de-md@1#chunk-1"
+  ],
+  "nodes": 9,
+  "tools": [
+    "invoice-lookup-v3",
+    "invoice-previous-v1",
+    "billing-knowledge-v2"
+  ],
+  "difference_cop": "64400.00",
+  "percentage_change": "23.00",
+  "transactional_invoice_table": "invoices",
+  "transactional_invoice_ids": [
+    "INV-1001",
+    "INV-1002"
+  ],
+  "generation_mode": "deterministic",
+  "denied_run_id": "run-963a5aa6f67b48a689d4834d91052252",
+  "expired_knowledge_run_id": "run-2003d5d85cec409ea41c90ed3cdbd667"
+}

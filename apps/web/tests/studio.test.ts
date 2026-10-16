@@ -16,6 +16,16 @@ test("proxy allows only management routes", () => {
     "me",
     "users",
     "runs",
+    "evaluation-suites",
+    "evaluations/eval-0123456789abcdef0123456789abcdef",
+    "agents/billing-assistant/versions/1/evaluations",
+    "agents/billing-assistant/versions/1/governance",
+    "agents/billing-assistant/versions/1/submit",
+    "agents/billing-assistant/versions/1/approve",
+    "agents/billing-assistant/versions/1/publish",
+    "agents/billing-assistant/rollback",
+    "metrics",
+    "audit-events",
     "runtime/agents",
     "runs/run-0123456789abcdef0123456789abcdef/trace",
   ])
@@ -24,6 +34,10 @@ test("proxy allows only management routes", () => {
     "",
     "../health",
     "runs/arbitrary-user-input",
+    "evaluations/arbitrary-id",
+    "evaluation-suites/execute",
+    "agents/billing-assistant/versions/0/publish",
+    "agents/billing-assistant/versions/1/set-role",
     "runs/run-0123456789abcdef0123456789abcdef/execute",
     "agents/../users",
     "agents/a%2Fb",
@@ -102,5 +116,55 @@ test("delete accepts empty 204 responses", async (context) => {
   assert.equal(
     await studioRequest("/agents/test-agent", "user-token", "DELETE"),
     undefined,
+  );
+});
+
+test("knowledge proxy paths preserve the bounded API surface", () => {
+  for (const path of [
+    "knowledge/collections",
+    "knowledge/collections/billing-reference/documents",
+    "knowledge/collections/billing-reference/grants",
+    "knowledge/collections/billing-reference/status",
+    "knowledge/documents/billing-faq-rag/versions",
+    "knowledge/documents/billing-faq-rag/versions/1/ingest",
+    "knowledge/documents/billing-faq-rag/versions/1/chunks/0",
+    "knowledge/search",
+    "knowledge/searches",
+  ])
+    assert.ok(allowedStudioPath(path.split("/")), path);
+  for (const path of [
+    "knowledge/documents/foo/versions/0",
+    "knowledge/documents/foo/download/../../secrets",
+    "knowledge/embeddings/provider",
+    "knowledge/search/execute",
+    "knowledge/documents/foo/versions/1/chunks/-1",
+  ])
+    assert.equal(allowedStudioPath(path.split("/")), false, path);
+});
+
+test("document uploads send multipart without overriding its boundary", async (context) => {
+  const body = new FormData();
+  body.set("file", new File(["Synthetic FAQ"], "faq.md"));
+  context.mock.method(
+    globalThis,
+    "fetch",
+    async (path: string, init: RequestInit) => {
+      assert.equal(
+        path,
+        "/api/studio/knowledge/documents/billing-faq-rag/versions",
+      );
+      assert.equal(init.body, body);
+      assert.deepEqual(init.headers, { Authorization: "Bearer user-token" });
+      return Response.json({ number: 1 }, { status: 201 });
+    },
+  );
+  assert.deepEqual(
+    await studioRequest(
+      "/knowledge/documents/billing-faq-rag/versions",
+      "user-token",
+      "POST",
+      body,
+    ),
+    { number: 1 },
   );
 });

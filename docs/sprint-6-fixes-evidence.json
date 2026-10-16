@@ -1,0 +1,518 @@
+{
+  "verified_at_utc": "2026-10-16T08:56:13.923640+00:00",
+  "local_functional_checks": "passed",
+  "public_production_delivery": "not_approved",
+  "pytest": {
+    "passed": 252,
+    "seconds": 54.46
+  },
+  "frontend_tests": {
+    "passed": 15
+  },
+  "standard_e2e": {
+    "passed": 7,
+    "failed": 0,
+    "seconds": 10.7
+  },
+  "knowledge_e2e_repeat": {
+    "passed": 2,
+    "failed": 0,
+    "seconds": 5.1
+  },
+  "ui": {
+    "agent_id": "final-audit-1792140684294",
+    "document_id": "final-audit-1792140684294",
+    "steps": [
+      "document_upload_and_ingestion_ui",
+      "document_approval_search_citation_ui",
+      "agent_configuration_and_frozen_snapshot_ui",
+      "evaluation_9_of_9_and_submission_ui",
+      "independent_approval_and_publication_ui",
+      "published_langgraph_invoice_rag_and_trace_ui"
+    ],
+    "run": {
+      "id": "run-bb05a2b874d34ceb82fb27455e132eaf",
+      "agent_id": "final-audit-1792140684294",
+      "version_number": 1,
+      "caller_id": "demo-creator",
+      "model_id": "synthetic-balanced-v1",
+      "config_hash": "d862a86eae66576dfc1942a386fe0f4fd2f595c6c3c4d0a2181177716ff467b4",
+      "workflow_version": "billing_workflow_v1:1.0.0",
+      "mode": "deterministic",
+      "channel": "published",
+      "evaluation_id": null,
+      "status": "completed",
+      "answer": "Modo determinista de prueba; sin llamada a un proveedor.\n\nLa factura INV-1002 de 2026-09 registra 420.000 kWh a 820.0000 COP/kWh: 344400.00 COP de cargo por consumo.\n\nFrente a INV-1001 (350.000 kWh y 280000.00 COP), el consumo varió 70.000 kWh y el cargo varió 64400.00 COP (23.00%).\n\nEfecto del consumo: 56000.00 COP; efecto de la tarifa: 8400.00 COP; ajuste de redondeo: 0.00 COP. Cálculos realizados en Python con Decimal.\n\nFuente aprobada [billing-tariffs-rag@1#chunk-0] — Tarifas sintéticas 2026: «# Tarifas sintéticas\nEn agosto de 2026 la tarifa es 800 COP/kWh y en septiembre 820 COP/kWh. El cargo por consumo es kWh multiplicado por tarifa. Estos valores son exclusivamente de demostración.»\n\nFuente aprobada [billing-faq-rag@1#chunk-0] — FAQ de facturación sintética: «# Preguntas frecuentes\nEl cargo por consumo combina consumo y tarifa del período. Más consumo o una tarifa mayor pueden aumentar la factura. Esta demostración no incluye impuestos, cargos fijos ni otros conceptos. Para comparar se usa la factura del mes calendario anterior. No existen escrituras financieras.»\n\nFuente aprobada [final-audit-1792140684294@1#chunk-0] — FAQ sintética final de entrega: «# Auditoria final-audit-1792140684294\nLa facturacion sintetica compara consumo de energia y tarifa. En septiembre de 2026 la tarifa de referencia es 820 COP/kWh. Los calculos de facturas se realizan en Python.»\n\nReferencias: INV-1002, INV-1001, billing-tariffs-rag@1#chunk-0, billing-faq-rag@1#chunk-0, final-audit-1792140684294@1#chunk-0",
+      "error_code": null,
+      "calculations": {
+        "difference_cop": "64400.00",
+        "rate_effect_cop": "8400.00",
+        "percentage_change": "23.00",
+        "current_charge_cop": "344400.00",
+        "previous_charge_cop": "280000.00",
+        "consumption_effect_cop": "56000.00",
+        "rounding_adjustment_cop": "0.00",
+        "consumption_difference_kwh": "70.000"
+      },
+      "references": [
+        "INV-1002",
+        "INV-1001",
+        "billing-tariffs-rag@1#chunk-0",
+        "billing-faq-rag@1#chunk-0",
+        "final-audit-1792140684294@1#chunk-0"
+      ],
+      "input_tokens": null,
+      "output_tokens": null,
+      "estimated_cost_usd": null,
+      "started_at": "2026-10-16T08:51:27.551406Z",
+      "completed_at": "2026-10-16T08:51:27.840507Z"
+    },
+    "trace": {
+      "run": {
+        "id": "run-bb05a2b874d34ceb82fb27455e132eaf",
+        "agent_id": "final-audit-1792140684294",
+        "version_number": 1,
+        "caller_id": "demo-creator",
+        "model_id": "synthetic-balanced-v1",
+        "config_hash": "d862a86eae66576dfc1942a386fe0f4fd2f595c6c3c4d0a2181177716ff467b4",
+        "workflow_version": "billing_workflow_v1:1.0.0",
+        "mode": "deterministic",
+        "channel": "published",
+        "evaluation_id": null,
+        "status": "completed",
+        "answer": "Modo determinista de prueba; sin llamada a un proveedor.\n\nLa factura INV-1002 de 2026-09 registra 420.000 kWh a 820.0000 COP/kWh: 344400.00 COP de cargo por consumo.\n\nFrente a INV-1001 (350.000 kWh y 280000.00 COP), el consumo varió 70.000 kWh y el cargo varió 64400.00 COP (23.00%).\n\nEfecto del consumo: 56000.00 COP; efecto de la tarifa: 8400.00 COP; ajuste de redondeo: 0.00 COP. Cálculos realizados en Python con Decimal.\n\nFuente aprobada [billing-tariffs-rag@1#chunk-0] — Tarifas sintéticas 2026: «# Tarifas sintéticas\nEn agosto de 2026 la tarifa es 800 COP/kWh y en septiembre 820 COP/kWh. El cargo por consumo es kWh multiplicado por tarifa. Estos valores son exclusivamente de demostración.»\n\nFuente aprobada [billing-faq-rag@1#chunk-0] — FAQ de facturación sintética: «# Preguntas frecuentes\nEl cargo por consumo combina consumo y tarifa del período. Más consumo o una tarifa mayor pueden aumentar la factura. Esta demostración no incluye impuestos, cargos fijos ni otros conceptos. Para comparar se usa la factura del mes calendario anterior. No existen escrituras financieras.»\n\nFuente aprobada [final-audit-1792140684294@1#chunk-0] — FAQ sintética final de entrega: «# Auditoria final-audit-1792140684294\nLa facturacion sintetica compara consumo de energia y tarifa. En septiembre de 2026 la tarifa de referencia es 820 COP/kWh. Los calculos de facturas se realizan en Python.»\n\nReferencias: INV-1002, INV-1001, billing-tariffs-rag@1#chunk-0, billing-faq-rag@1#chunk-0, final-audit-1792140684294@1#chunk-0",
+        "error_code": null,
+        "calculations": {
+          "difference_cop": "64400.00",
+          "rate_effect_cop": "8400.00",
+          "percentage_change": "23.00",
+          "current_charge_cop": "344400.00",
+          "previous_charge_cop": "280000.00",
+          "consumption_effect_cop": "56000.00",
+          "rounding_adjustment_cop": "0.00",
+          "consumption_difference_kwh": "70.000"
+        },
+        "references": [
+          "INV-1002",
+          "INV-1001",
+          "billing-tariffs-rag@1#chunk-0",
+          "billing-faq-rag@1#chunk-0",
+          "final-audit-1792140684294@1#chunk-0"
+        ],
+        "input_tokens": null,
+        "output_tokens": null,
+        "estimated_cost_usd": null,
+        "started_at": "2026-10-16T08:51:27.551406Z",
+        "completed_at": "2026-10-16T08:51:27.840507Z"
+      },
+      "events": [
+        {
+          "step": 1,
+          "node": "authorize",
+          "status": "completed",
+          "error_code": null,
+          "started_at": "2026-10-16T08:51:27.575985Z",
+          "duration_ms": 24
+        },
+        {
+          "step": 2,
+          "node": "route",
+          "status": "completed",
+          "error_code": null,
+          "started_at": "2026-10-16T08:51:27.601471Z",
+          "duration_ms": 0
+        },
+        {
+          "step": 3,
+          "node": "invoice",
+          "status": "completed",
+          "error_code": null,
+          "started_at": "2026-10-16T08:51:27.602827Z",
+          "duration_ms": 26
+        },
+        {
+          "step": 4,
+          "node": "previous",
+          "status": "completed",
+          "error_code": null,
+          "started_at": "2026-10-16T08:51:27.630102Z",
+          "duration_ms": 27
+        },
+        {
+          "step": 5,
+          "node": "knowledge",
+          "status": "completed",
+          "error_code": null,
+          "started_at": "2026-10-16T08:51:27.659383Z",
+          "duration_ms": 38
+        },
+        {
+          "step": 6,
+          "node": "calculate",
+          "status": "completed",
+          "error_code": null,
+          "started_at": "2026-10-16T08:51:27.698957Z",
+          "duration_ms": 0
+        },
+        {
+          "step": 7,
+          "node": "generate",
+          "status": "completed",
+          "error_code": null,
+          "started_at": "2026-10-16T08:51:27.700137Z",
+          "duration_ms": 22
+        },
+        {
+          "step": 8,
+          "node": "validate_output",
+          "status": "completed",
+          "error_code": null,
+          "started_at": "2026-10-16T08:51:27.723902Z",
+          "duration_ms": 113
+        },
+        {
+          "step": 9,
+          "node": "finalize",
+          "status": "completed",
+          "error_code": null,
+          "started_at": "2026-10-16T08:51:27.838809Z",
+          "duration_ms": 0
+        }
+      ],
+      "tool_calls": [
+        {
+          "id": "call-b423677e7c844ae2ade0c994316a69cb",
+          "tool_id": "invoice-lookup-v3",
+          "tool_version": "3.0.0",
+          "arguments": {
+            "invoice_id": "INV-1002"
+          },
+          "result_references": [
+            "INV-1002"
+          ],
+          "attempt": 1,
+          "status": "completed",
+          "error_code": null,
+          "started_at": "2026-10-16T08:51:27.602832Z",
+          "completed_at": "2026-10-16T08:51:27.627933Z",
+          "duration_ms": 25
+        },
+        {
+          "id": "call-8e5a135132454ded984db35d75a0aaec",
+          "tool_id": "invoice-previous-v1",
+          "tool_version": "1.0.0",
+          "arguments": {
+            "invoice_id": "INV-1002"
+          },
+          "result_references": [
+            "INV-1001"
+          ],
+          "attempt": 1,
+          "status": "completed",
+          "error_code": null,
+          "started_at": "2026-10-16T08:51:27.630109Z",
+          "completed_at": "2026-10-16T08:51:27.655925Z",
+          "duration_ms": 25
+        },
+        {
+          "id": "call-d38a7ee4f2204569b75f0bd7e643173e",
+          "tool_id": "billing-knowledge-v2",
+          "tool_version": "2.0.0",
+          "arguments": {
+            "period": "2026-09-01"
+          },
+          "result_references": [
+            "billing-tariffs-rag@1#chunk-0",
+            "billing-faq-rag@1#chunk-0",
+            "final-audit-1792140684294@1#chunk-0"
+          ],
+          "attempt": 1,
+          "status": "completed",
+          "error_code": null,
+          "started_at": "2026-10-16T08:51:27.659392Z",
+          "completed_at": "2026-10-16T08:51:27.697220Z",
+          "duration_ms": 37
+        }
+      ],
+      "knowledge_searches": [
+        {
+          "id": "search-f69f011c9ecd4935a78a362c9eba9812",
+          "run_id": "run-bb05a2b874d34ceb82fb27455e132eaf",
+          "caller_id": "demo-creator",
+          "as_of": "2026-09-01",
+          "collection_ids": [
+            "billing-reference"
+          ],
+          "references": [
+            {
+              "chunk": 0,
+              "score": 0.01639344262295082,
+              "version": 1,
+              "char_end": 195,
+              "valid_to": "2026-12-31",
+              "reference": "billing-tariffs-rag@1#chunk-0",
+              "char_start": 0,
+              "valid_from": "2026-08-01",
+              "document_id": "billing-tariffs-rag",
+              "content_hash": "a681733778ecab0a46f5d4932b0298a57f125dcecf0ba7e00e978c968577919a",
+              "lexical_rank": 0,
+              "collection_id": "billing-reference",
+              "semantic_similarity": 0.7645847061028915
+            },
+            {
+              "chunk": 0,
+              "score": 0.016129032258064516,
+              "version": 1,
+              "char_end": 309,
+              "valid_to": "2026-12-31",
+              "reference": "billing-faq-rag@1#chunk-0",
+              "char_start": 0,
+              "valid_from": "2026-08-01",
+              "document_id": "billing-faq-rag",
+              "content_hash": "f6553b1dbd54c39b44aba2b2d8cba0abbc1b21d820dfc600ecda63e31149d786",
+              "lexical_rank": 0,
+              "collection_id": "billing-reference",
+              "semantic_similarity": 0.6678374211691285
+            },
+            {
+              "chunk": 0,
+              "score": 0.015873015873015872,
+              "version": 1,
+              "char_end": 209,
+              "valid_to": "2026-12-31",
+              "reference": "final-audit-1792140684294@1#chunk-0",
+              "char_start": 0,
+              "valid_from": "2026-08-01",
+              "document_id": "final-audit-1792140684294",
+              "content_hash": "5bee765031d013ee5f30bdab69e3b770e7abebfbae291fa19404e8bedabac302",
+              "lexical_rank": 0,
+              "collection_id": "billing-reference",
+              "semantic_similarity": 0.6617890990846824
+            }
+          ],
+          "embedding_version": "model2vec-0.7.0:minishlab/potion-multilingual-128M@73908c3438cf03b6a01bcb9611d62b23d0726f08:256",
+          "mode": "hybrid-semantic",
+          "duration_ms": 7,
+          "error_code": null,
+          "created_at": "2026-10-16T08:51:27.659684Z"
+        }
+      ]
+    }
+  },
+  "rag": {
+    "agent_id": "s5-audit-3a4359c0969f",
+    "version": 1,
+    "config_hash": "99002205c026bb40da80671e6c89670d8b0c848ee6c2a839369ddb2f295b7cb3",
+    "documents": [
+      {
+        "document_id": "s5-audit-3a4359c0969f-txt",
+        "format": "txt",
+        "extracted_characters": 1188,
+        "versions": 1,
+        "chunks": 2,
+        "vectors_hash": "56e2c366dfcc75b4857307ebc9c2ae9ea36663da689273784dee36f1a9b84c08",
+        "physical_vector_type": "vector(256)",
+        "real_embeddings_match_database": true
+      },
+      {
+        "document_id": "s5-audit-3a4359c0969f-md",
+        "format": "md",
+        "extracted_characters": 1187,
+        "versions": 1,
+        "chunks": 2,
+        "vectors_hash": "c5e65cdd5a00bd3f1cefb2eb66af1a0f08c710b0630ac11e64d27f80e0dd8c90",
+        "physical_vector_type": "vector(256)",
+        "real_embeddings_match_database": true
+      },
+      {
+        "document_id": "s5-audit-3a4359c0969f-pdf",
+        "format": "pdf",
+        "extracted_characters": 1188,
+        "versions": 1,
+        "chunks": 2,
+        "vectors_hash": "0a1e09df1bb1bab969bb1ce21120bcee71ca7b69413a69f3b74d3b43fdb8038a",
+        "physical_vector_type": "vector(256)",
+        "real_embeddings_match_database": true
+      }
+    ],
+    "embedding_version": "model2vec-0.7.0:minishlab/potion-multilingual-128M@73908c3438cf03b6a01bcb9611d62b23d0726f08:256",
+    "date_filter_counts": {
+      "2026-07-31": 0,
+      "2026-08-01": 6,
+      "2026-09-30": 6,
+      "2026-10-01": 0
+    },
+    "unauthorized_http_status": 403,
+    "search_id": "search-fff9ab7e3a77463a8207b10f14184a4d",
+    "run_id": "run-1cac9c340e7c439694e636f33a7c77a2",
+    "persisted_citations": [
+      "s5-audit-3a4359c0969f-pdf@1#chunk-0",
+      "s5-audit-3a4359c0969f-txt@1#chunk-0",
+      "s5-audit-3a4359c0969f-md@1#chunk-0",
+      "s5-audit-3a4359c0969f-md@1#chunk-1"
+    ],
+    "nodes": 9,
+    "tools": [
+      "invoice-lookup-v3",
+      "invoice-previous-v1",
+      "billing-knowledge-v2"
+    ],
+    "difference_cop": "64400.00",
+    "percentage_change": "23.00",
+    "transactional_invoice_table": "invoices",
+    "transactional_invoice_ids": [
+      "INV-1001",
+      "INV-1002"
+    ],
+    "generation_mode": "deterministic",
+    "denied_run_id": "run-27fba9ac5ebf495cb13f40082b0e869e",
+    "expired_knowledge_run_id": "run-44701f0f863244c6882a958f72226f3b"
+  },
+  "ux": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "checks": {
+      "real_infrastructure_status": true,
+      "invalid_token_error": true,
+      "registry_empty_state": true,
+      "traces_empty_state": true,
+      "metrics_loading": true,
+      "mobile_no_horizontal_page_overflow": true
+    },
+    "pages": [
+      {
+        "path": "/",
+        "viewport": 390,
+        "document_width": 390,
+        "body_width": 390,
+        "overflowing_elements": []
+      },
+      {
+        "path": "/dashboard",
+        "viewport": 390,
+        "document_width": 390,
+        "body_width": 390,
+        "overflowing_elements": []
+      },
+      {
+        "path": "/agents",
+        "viewport": 390,
+        "document_width": 390,
+        "body_width": 390,
+        "overflowing_elements": []
+      },
+      {
+        "path": "/models",
+        "viewport": 390,
+        "document_width": 390,
+        "body_width": 390,
+        "overflowing_elements": []
+      },
+      {
+        "path": "/tools",
+        "viewport": 390,
+        "document_width": 390,
+        "body_width": 390,
+        "overflowing_elements": []
+      },
+      {
+        "path": "/knowledge",
+        "viewport": 390,
+        "document_width": 390,
+        "body_width": 390,
+        "overflowing_elements": []
+      },
+      {
+        "path": "/playground",
+        "viewport": 390,
+        "document_width": 390,
+        "body_width": 390,
+        "overflowing_elements": []
+      },
+      {
+        "path": "/evaluations",
+        "viewport": 390,
+        "document_width": 390,
+        "body_width": 390,
+        "overflowing_elements": []
+      },
+      {
+        "path": "/traces",
+        "viewport": 390,
+        "document_width": 390,
+        "body_width": 390,
+        "overflowing_elements": []
+      },
+      {
+        "path": "/agents/billing-assistant",
+        "viewport": 390,
+        "document_width": 390,
+        "body_width": 390,
+        "overflowing_elements": []
+      }
+    ]
+  },
+  "metrics_reconciliation": {
+    "metrics_match_sql": true,
+    "measured_runs": 301,
+    "tool_calls": 645,
+    "tool_errors": 134,
+    "latency_p50_ms": 46.397,
+    "latency_p95_ms": 202.293,
+    "publication_hash_chain_matches": true,
+    "agent_id": "quality-smoke-ed1f247bb2d8",
+    "version": 1,
+    "config_hash": "ddd062100e21582ee46817a4693786bbe4442d54e295b5cfa39ad4b66aa06e78",
+    "evaluation_id": "eval-88e3e757445d45d29264e5b6eef7e2d0",
+    "approval_id": "apr-4e9b268d27f7427c893fb09789e356ae",
+    "findings": []
+  },
+  "persistence": "PASS: run, StateGraph events, tool calls and retrieval log survive API restart.",
+  "container": {
+    "pypdf": "6.19.0",
+    "python-multipart": "0.0.31",
+    "langgraph": "1.2.15",
+    "graph_class": "CompiledStateGraph",
+    "uid": 1000
+  },
+  "python_dependencies": {
+    "packages_scanned": 107,
+    "advisories": 0
+  },
+  "npm_development_and_runtime": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 5,
+    "critical": 0,
+    "total": 5
+  },
+  "npm_runtime": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0,
+    "total": 0
+  },
+  "env_mode": "0o600",
+  "secret_scan": {
+    "current_files_scanned": 171,
+    "browser_static_files_scanned": 20,
+    "historical_blobs_scanned": 234,
+    "configured_server_secret_count": 1,
+    "env_tracked": false,
+    "env_ignored": true,
+    "findings": [],
+    "limitations": "Pattern and exact-value scan; cannot prove absence of every possible credential or rotation of externally shared keys."
+  },
+  "remaining": [
+    "Unpatched development-only npm tooling advisories",
+    "No production identity/public hosting validated",
+    "Existing S4-S6 working tree not committed or validated from clean checkout",
+    "Externally shared provider key rotation unverified",
+    "Native instructions updated but complete native startup not re-executed"
+  ]
+}

@@ -2,7 +2,7 @@ SHELL := /bin/sh
 UV ?= uv
 COMPOSE := docker compose
 
-.PHONY: help env demo-env seed runtime-seed runtime-smoke provider-smoke config up down logs ps migrate test test-unit lint web-check smoke verify install dev-api dev-web e2e
+.PHONY: help env demo-env seed runtime-seed governance-seed knowledge-seed knowledge-model knowledge-smoke governance-smoke runtime-smoke provider-smoke config up down logs ps migrate test test-unit lint web-check smoke verify install dev-api dev-web e2e
 
 help:
 	@echo "make env       Create .env without overwriting existing configuration"
@@ -22,6 +22,21 @@ seed: env
 
 runtime-seed: env
 	$(COMPOSE) run --rm --build migrate python -m app.runtime.seed
+
+governance-seed: env
+	$(COMPOSE) run --rm --build migrate python -m app.governance.seed
+
+knowledge-model:
+	$(UV) run --frozen python scripts/download_embeddings.py
+
+knowledge-seed: env
+	$(COMPOSE) run --rm --build migrate python -m app.knowledge.seed
+
+knowledge-smoke:
+	$(COMPOSE) exec -T api python - < scripts/knowledge_smoke.py
+
+governance-smoke:
+	$(COMPOSE) exec -T api python - < scripts/governance_smoke.py
 
 e2e:
 	npm run test:e2e
@@ -70,11 +85,15 @@ verify:
 	$(MAKE) up
 	$(MAKE) seed
 	$(MAKE) runtime-seed
+	$(MAKE) governance-seed
+	$(MAKE) knowledge-seed
 	$(MAKE) test
 	$(MAKE) lint
 	$(MAKE) web-check
 	$(MAKE) smoke
 	$(MAKE) runtime-smoke
+	$(MAKE) governance-smoke
+	$(MAKE) knowledge-smoke
 
 install: env
 	$(UV) sync --frozen

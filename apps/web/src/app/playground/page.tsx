@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import {
   Feedback,
@@ -7,6 +8,7 @@ import {
   useResource,
   useStudio,
 } from "../../components/studio";
+import { KnowledgeTraceView } from "../../components/trace";
 import type { ExecutableVersion, RunResult, RunTrace } from "../../lib/runtime";
 
 function Playground() {
@@ -17,6 +19,7 @@ function Playground() {
   const [mode, setMode] = useState<"deterministic" | "provider">(
     "deterministic",
   );
+  const [channel, setChannel] = useState<"preview" | "published">("preview");
   const [task, setTask] = useState("auto");
   const [invoiceId, setInvoiceId] = useState(
     user?.id === "demo-customer-b" ? "INV-2002" : "INV-1002",
@@ -47,6 +50,7 @@ function Playground() {
       const run = await api<RunResult>("/runs", "POST", {
         agent_id: selected.agent_id,
         version: selected.version,
+        channel,
         mode: chosenMode,
         message,
         task,
@@ -72,8 +76,8 @@ function Playground() {
           respuesta y traza reales.
         </p>
         <p className="notice">
-          Vista previa local con datos sintéticos. Las versiones no están
-          publicadas.
+          Datos sintéticos locales. Preview prueba snapshots con grants
+          explícitos; Published exige una publicación aprobada y vigente.
         </p>
       </section>
       <Feedback
@@ -109,8 +113,23 @@ function Playground() {
                         value={`${item.agent_id}@${item.version}`}
                       >
                         {item.name} · v{item.version} · {item.model_id}
+                        {item.published ? " · PUBLISHED" : " · PREVIEW"}
                       </option>
                     ))}
+                  </select>
+                </label>
+                <label>
+                  Canal de ejecución
+                  <select
+                    value={channel}
+                    onChange={(e) =>
+                      setChannel(e.target.value as "preview" | "published")
+                    }
+                  >
+                    <option value="preview">Preview · prueba local</option>
+                    <option value="published" disabled={!selected?.published}>
+                      Published · versión aprobada
+                    </option>
                   </select>
                 </label>
                 <label>
@@ -237,6 +256,10 @@ function Playground() {
                   {result.status}
                 </span>
                 <span className="badge">{result.mode}</span>
+                <span className="badge">{result.channel}</span>
+                <Link href={`/traces?run=${result.id}`}>
+                  Abrir Trace Viewer
+                </Link>
               </div>
               <p className="hash">
                 Run: {result.id}
@@ -269,6 +292,9 @@ function Playground() {
                 Referencias:{" "}
                 {result.references.join(", ") || "Sin evidencia liberada"}
               </p>
+              <KnowledgeTraceView
+                searches={trace.data?.knowledge_searches || []}
+              />
               <h3 className="trace-heading">Nodos del StateGraph</h3>
               <div className="table-scroll">
                 <table>

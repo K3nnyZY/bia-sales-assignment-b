@@ -16,7 +16,13 @@ async function forward(
       { status: 401 },
     );
   }
-  if (Number(request.headers.get("content-length") || 0) > 131072) {
+  const multipart =
+    request.headers.get("content-type")?.startsWith("multipart/form-data") &&
+    /^knowledge\/documents\/[a-z][a-z0-9_-]{2,79}\/versions$/.test(
+      path.join("/"),
+    );
+  const maxBytes = multipart ? 2113536 : 131072;
+  if (Number(request.headers.get("content-length") || 0) > maxBytes) {
     return Response.json(
       { detail: "Solicitud demasiado grande" },
       { status: 413 },
@@ -27,8 +33,32 @@ async function forward(
       /\/$/,
       "",
     );
-    const body = request.method === "GET" ? undefined : await request.text();
-    if (body && new TextEncoder().encode(body).length > 131072)
+    let body: Uint8Array<ArrayBuffer> | undefined;
+    if (request.method !== "GET" && request.body) {
+      const reader = request.body.getReader();
+      const chunks: Uint8Array[] = [];
+      let size = 0;
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        size += value.byteLength;
+        if (size > maxBytes) {
+          await reader.cancel();
+          return Response.json(
+            { detail: "Solicitud demasiado grande" },
+            { status: 413 },
+          );
+        }
+        chunks.push(value);
+      }
+      body = new Uint8Array(size);
+      let offset = 0;
+      for (const chunk of chunks) {
+        body.set(chunk, offset);
+        offset += chunk.byteLength;
+      }
+    }
+    if (body && body.byteLength > maxBytes)
       return Response.json(
         { detail: "Solicitud demasiado grande" },
         { status: 413 },
@@ -37,11 +67,20 @@ async function forward(
       `${base}/api/v1/${path.join("/")}${new URL(request.url).search}`,
       {
         method: request.method,
-        headers: { Authorization: token, "Content-Type": "application/json" },
+        headers: {
+          Authorization: token,
+          "Content-Type": multipart
+            ? request.headers.get("content-type")!
+            : "application/json",
+        },
         body: body || undefined,
         cache: "no-store",
         signal: AbortSignal.timeout(
-          path.join("/") === "runs" && request.method === "POST"
+          (path.join("/") === "runs" ||
+            path.at(-1) === "evaluations" ||
+            path.at(-1) === "ingest" ||
+            path.join("/") === "knowledge/search") &&
+            request.method === "POST"
             ? 125000
             : 8000,
         ),

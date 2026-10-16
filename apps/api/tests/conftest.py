@@ -43,7 +43,7 @@ def db_engine():
     schema = f"test_{uuid4().hex}"
     admin = create_engine(Settings().sqlalchemy_url)
     engine = create_engine(
-        Settings().sqlalchemy_url, connect_args={"options": f"-csearch_path={schema}"}
+        Settings().sqlalchemy_url, connect_args={"options": f"-csearch_path={schema},public"}
     )
     try:
         with admin.begin() as connection:

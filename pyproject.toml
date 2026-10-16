@@ -13,6 +13,10 @@ dependencies = [
     "jsonschema>=4.25,<5",
     "langgraph==1.2.15",
     "litellm==1.105.1",
+    "pgvector==0.4.2",
+    "pypdf==6.19.0",
+    "python-multipart==0.0.31",
+    "model2vec==0.7.0",
 ]
 
 [dependency-groups]

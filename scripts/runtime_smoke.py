@@ -39,7 +39,11 @@ if os.environ.get("RUNTIME_TRACE_PROOF"):
 
 
 versions = request("/api/v1/runtime/agents")
-selected = next(item for item in reversed(versions) if "deterministic" in item["available_modes"])
+selected = next(
+    item
+    for item in reversed(versions)
+    if item["agent_id"] == "billing-assistant" and "deterministic" in item["available_modes"]
+)
 payload = {
     "agent_id": selected["agent_id"],
     "version": selected["version"],

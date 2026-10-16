@@ -5,6 +5,9 @@ WORKDIR /workspace
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy PYTHONUNBUFFERED=1 PYTHONPATH=/workspace/apps/api
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
+COPY scripts/download_embeddings.py /tmp/download_embeddings.py
+ENV KNOWLEDGE_MODEL_PATH=/opt/bia/knowledge-model
+RUN .venv/bin/python /tmp/download_embeddings.py
 COPY apps/api ./apps/api
 COPY scripts ./scripts
 ENV PATH="/workspace/.venv/bin:$PATH"

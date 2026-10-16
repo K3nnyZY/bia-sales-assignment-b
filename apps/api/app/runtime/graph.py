@@ -13,6 +13,7 @@ from app.billing.calculations import compare_invoices
 from app.billing.contracts import InvoiceData, KnowledgeItem
 from app.billing.models import BillingKnowledge
 from app.billing.tools import execute_tool, owned_invoice
+from app.knowledge.runtime import RAG_TOOL_ID, evidence_period
 from app.runtime.context import ExecutionContext
 from app.runtime.errors import ExecutionError
 from app.runtime.gateway import explain
@@ -80,7 +81,11 @@ async def previous(state: BillingState, ctx: ExecutionContext) -> dict:
 
 async def knowledge(state: BillingState, ctx: ExecutionContext) -> dict:
     period = state.get("current", {}).get("period", state["period"])
-    return {"knowledge": await execute_tool(ctx, "billing-knowledge-v1", {"period": period})}
+    return {
+        "knowledge": await execute_tool(
+            ctx, RAG_TOOL_ID if ctx.config.knowledge else "billing-knowledge-v1", {"period": period}
+        )
+    }
 
 
 async def calculate(state: BillingState, ctx: ExecutionContext) -> dict:
@@ -115,7 +120,11 @@ async def calculate(state: BillingState, ctx: ExecutionContext) -> dict:
                 f"ajuste de redondeo: {calculations['rounding_adjustment_cop']} COP. "
                 "Cálculos realizados en Python con Decimal."
             )
-    for item in state["knowledge"]["items"]:
+    for item in state["knowledge"].get("evidence", []):
+        reference = item["reference"]
+        references.append(reference)
+        observations.append(f"Fuente aprobada [{reference}] — {item['title']}: «{item['content']}»")
+    for item in state["knowledge"].get("items", []):
         reference = f"{item['id']}@{item['version']}"
         references.append(reference)
         # Quote source text as data. It cannot change routing, identity or tool arguments.
@@ -144,7 +153,21 @@ async def validate_output(state: BillingState, ctx: ExecutionContext) -> dict:
     for key in ["current", "previous"]:
         if state.get(key):
             owned_invoice(ctx, state[key]["invoice_id"])
-    for source in state["knowledge"]["items"]:
+    if ctx.config.knowledge:
+        from app.knowledge.service import verify_evidence
+
+        try:
+            verify_evidence(
+                ctx.session,
+                authorize_context(ctx),
+                state["knowledge"]["evidence"],
+                evidence_period(state),
+            )
+        except Exception as exc:
+            raise ExecutionError(
+                "KNOWLEDGE_CHANGED", "La evidencia dejó de estar autorizada.", status="denied"
+            ) from exc
+    for source in state["knowledge"].get("items", []):
         row = ctx.session.scalar(
             select(BillingKnowledge).where(
                 BillingKnowledge.id == source["id"],

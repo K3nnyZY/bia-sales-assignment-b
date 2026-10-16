@@ -16,6 +16,7 @@ from app.agents.schemas import (
     VersionUpdate,
 )
 from app.db.session import DatabaseSession
+from app.governance.audit import record
 from app.identity.auth import CurrentUser
 
 router = APIRouter(prefix="/api/v1/agents", tags=["agents"])
@@ -44,6 +45,7 @@ def agents(
 @router.post("", response_model=AgentRead, status_code=201)
 def add_agent(data: AgentCreate, response: Response, session: DatabaseSession, user: CurrentUser):
     item = service.create_agent(session, data, user)
+    record(session, user.id, "agent.created", resource_id=item.id, owner_id=item.owner_id)
     session.commit()
     response.headers["Location"] = f"/api/v1/agents/{item.id}"
     return item
@@ -58,6 +60,14 @@ def agent_detail(agent_id: str, session: DatabaseSession, user: CurrentUser):
 def edit_agent(agent_id: str, data: AgentUpdate, session: DatabaseSession, user: CurrentUser):
     item = service.update_agent(
         session, service.get_agent(session, agent_id, user, edit=True), data, user
+    )
+    record(
+        session,
+        user.id,
+        "agent.updated",
+        resource_id=item.id,
+        owner_id=item.owner_id,
+        revision=item.revision,
     )
     session.commit()
     return item
@@ -78,6 +88,7 @@ def delete_agent(
         service.fail(
             409, "HISTORY_EXISTS", "Agents with version history must be disabled, not deleted"
         )
+    record(session, user.id, "agent.deleted", resource_id=item.id, owner_id=item.owner_id)
     session.delete(item)
     session.commit()
     return Response(status_code=204)
@@ -97,6 +108,14 @@ def versions(agent_id: str, session: DatabaseSession, user: CurrentUser):
 def add_version(agent_id: str, data: VersionCreate, session: DatabaseSession, user: CurrentUser):
     agent = service.get_agent(session, agent_id, user, edit=True)
     version = service.create_version(session, agent, data, user)
+    record(
+        session,
+        user.id,
+        "version.created",
+        agent_id,
+        version.number,
+        source_version=data.source_version,
+    )
     session.commit()
     return version
 
@@ -117,6 +136,7 @@ def edit_version(
         session, version, data.configuration, service.owner_for(session, agent.owner_id)
     )
     version.revision += 1
+    record(session, user.id, "version.updated", agent_id, number, revision=version.revision)
     session.commit()
     return version
 
@@ -128,5 +148,6 @@ def snapshot(
     agent = service.get_agent(session, agent_id, user, edit=True)
     version = service.editable_version(session, agent, number, data.expected_revision)
     service.freeze_version(session, agent, version)
+    record(session, user.id, "version.snapshot", agent_id, number, config_hash=version.config_hash)
     session.commit()
     return version

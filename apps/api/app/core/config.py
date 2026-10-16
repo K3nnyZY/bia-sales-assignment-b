@@ -11,6 +11,8 @@ ROOT = Path(__file__).resolve().parents[4]
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=ROOT / ".env", extra="ignore", env_ignore_empty=True)
 
+    knowledge_model_path: str = str(ROOT / ".cache/knowledge-model")
+
     app_env: Literal["development", "test", "production"] = "development"
     postgres_host: str = "127.0.0.1"
     postgres_port: int = 55432
@@ -24,6 +26,10 @@ class Settings(BaseSettings):
     demo_creator_token: SecretStr | None = None
     demo_viewer_token: SecretStr | None = None
     demo_customer_b_token: SecretStr | None = None
+    demo_reviewer_token: SecretStr | None = None
+    demo_approver_token: SecretStr | None = None
+    demo_auditor_token: SecretStr | None = None
+    evaluation_timeout_seconds: float = Field(default=60, gt=0, le=90)
     enable_local_runtime: bool = False
     enable_provider_runtime: bool = False
     model_timeout_seconds: float = Field(default=15, gt=0, le=60)

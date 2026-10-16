@@ -145,6 +145,12 @@ function ConfigurationForm({
   const [modelId, setModelId] = useState(
     initial?.model.model_id || models[0]?.id || "",
   );
+  const [billingWorkflow, setBillingWorkflow] = useState(
+    Boolean(initial?.workflow),
+  );
+  const [knowledgeText, setKnowledgeText] = useState(
+    initial?.knowledge ? JSON.stringify(initial.knowledge, null, 2) : "",
+  );
   const [toolIds, setToolIds] = useState(initial?.tool_ids || []);
   const [capabilities, setCapabilities] = useState(
     initial?.required_capabilities || ["chat"],
@@ -168,7 +174,14 @@ function ConfigurationForm({
     kind: "AgentConfiguration",
     objective,
     instructions,
-    ...(initial?.workflow ? { workflow: initial.workflow } : {}),
+    ...(billingWorkflow
+      ? {
+          workflow: {
+            id: "billing_workflow_v1" as const,
+            version: "1.0.0" as const,
+          },
+        }
+      : {}),
     model: { model_id: modelId, max_output_tokens: output },
     tool_ids: [...toolIds].sort(),
     required_capabilities: capabilities,
@@ -197,12 +210,25 @@ function ConfigurationForm({
   }
   function save(event: FormEvent) {
     event.preventDefault();
+    let selectedKnowledge: unknown;
+    try {
+      selectedKnowledge = knowledgeText.trim()
+        ? JSON.parse(knowledgeText)
+        : undefined;
+    } catch {
+      setError("Las referencias de conocimiento deben ser JSON válido.");
+      return;
+    }
+    const configured = {
+      ...configuration,
+      ...(selectedKnowledge ? { knowledge: selectedKnowledge } : {}),
+    };
     void mutate(
       `/agents/${agent.id}/versions${version ? `/${version.number}` : ""}`,
       version ? "PUT" : "POST",
       version
-        ? { expected_revision: version.revision, configuration }
-        : { configuration },
+        ? { expected_revision: version.revision, configuration: configured }
+        : { configuration: configured },
     );
   }
   function toggle(
@@ -235,8 +261,8 @@ function ConfigurationForm({
       </div>
       {frozen && (
         <p className="notice">
-          Snapshot inmutable, sin publicar. Crea una nueva versión para realizar
-          cambios.
+          Snapshot inmutable. Consulta su evaluación y publicación en el
+          Evaluation Center. Crea una nueva versión para realizar cambios.
         </p>
       )}
       <form onSubmit={save} onChange={() => setDirty(true)}>
@@ -260,6 +286,38 @@ function ConfigurationForm({
               maxLength={12000}
             />
           </label>
+          <label>
+            Workflow
+            <select
+              aria-label="Workflow"
+              value={billingWorkflow ? "billing" : "none"}
+              onChange={(e) => setBillingWorkflow(e.target.value === "billing")}
+            >
+              <option value="none">Sin runtime</option>
+              <option value="billing">Billing StateGraph · v1.0.0</option>
+            </select>
+          </label>
+          <p className="hint">
+            Billing requiere get_customer_invoice v3, get_previous_invoice v1,
+            search_billing_knowledge v1 (legacy) o v2 (RAG con documentos
+            fijados), al menos 9 pasos y 3 llamadas.
+          </p>
+          <label>
+            Documentos de conocimiento (JSON opcional)
+            <textarea
+              aria-label="Referencias de conocimiento"
+              value={knowledgeText}
+              onChange={(e) => setKnowledgeText(e.target.value)}
+              placeholder={
+                '{"documents":[{"document_id":"billing-faq-rag","version":1}]}'
+              }
+            />
+          </label>
+          <p className="hint">
+            Selecciona versiones aprobadas desde Conocimiento. RAG requiere
+            billing-knowledge-v2 y excluye v1. El backend verifica los grants
+            del propietario; este JSON no concede permisos.
+          </p>
           <label>
             Modelo aprobado
             <select
@@ -493,6 +551,7 @@ function AgentDetail() {
       <section className="intro compact">
         <Link href="/agents">← Inventario de agentes</Link>
         <h1>{agent.data?.name || "Detalle del agente"}</h1>
+        <Link href="/evaluations">Evaluaciones y publicación</Link>
         <p>{id}</p>
       </section>
       <Feedback error={loadError || error} success={success} />

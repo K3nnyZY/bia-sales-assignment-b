@@ -93,10 +93,14 @@ export function SiteHeader() {
         BIA<span>Agent Studio</span>
       </Link>
       <nav aria-label="Navegación principal">
+        <Link href="/dashboard">Dashboard</Link>
         <Link href="/agents">Agentes</Link>
         <Link href="/models">Modelos</Link>
         <Link href="/tools">Herramientas</Link>
+        <Link href="/knowledge">Conocimiento</Link>
         <Link href="/playground">Playground</Link>
+        <Link href="/evaluations">Evaluaciones</Link>
+        <Link href="/traces">Trazas</Link>
         <Link href="/">Infraestructura</Link>
       </nav>
     </header>
@@ -171,7 +175,7 @@ export function StudioShell({ children }: { children: ReactNode }) {
       ) : (
         <Login />
       )}
-      <footer>Sprint 3 · Agent Runtime · Entorno sintético local</footer>
+      <footer>Sprint 5 · Knowledge & RAG · Entorno sintético local</footer>
     </main>
   );
 }

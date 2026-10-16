@@ -45,6 +45,7 @@ export type Configuration = {
   objective: string;
   instructions: string;
   workflow?: { id: "billing_workflow_v1"; version: "1.0.0" } | null;
+  knowledge?: { documents: { document_id: string; version: number }[] } | null;
   model: {
     model_id: string;
     profile?: string | null;
@@ -96,12 +97,25 @@ export async function studioRequest<T>(
     method,
     headers: {
       Authorization: `Bearer ${token}`,
-      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+      ...(body === undefined || body instanceof FormData
+        ? {}
+        : { "Content-Type": "application/json" }),
     },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body:
+      body === undefined
+        ? undefined
+        : body instanceof FormData
+          ? body
+          : JSON.stringify(body),
     cache: "no-store",
     signal: AbortSignal.timeout(
-      path === "/runs" && method === "POST" ? 130000 : 10000,
+      (path === "/runs" ||
+        path.endsWith("/evaluations") ||
+        path.endsWith("/ingest") ||
+        path === "/knowledge/search") &&
+        method === "POST"
+        ? 130000
+        : 10000,
     ),
   });
   if (!response.ok) {
@@ -131,7 +145,25 @@ export function allowedStudioPath(segments: string[]): boolean {
   )
     return false;
   if (
+    /^knowledge\/(collections(?:\/[a-z][a-z0-9_-]{2,79}\/(?:documents|grants|status))?|documents\/[a-z][a-z0-9_-]{2,79}\/versions(?:\/[1-9]\d*(?:\/ingest|\/chunks\/(?:0|[1-9]\d*))?)?|search|searches)$/.test(
+      segments.join("/"),
+    )
+  )
+    return true;
+  if (
     /^(runs(?:\/run-[a-f0-9]{32}(?:\/trace)?)?|runtime\/agents)$/.test(
+      segments.join("/"),
+    )
+  )
+    return true;
+  if (
+    /^(evaluation-suites|evaluations(?:\/eval-[a-f0-9]{32})?|approvals|audit-events|metrics)$/.test(
+      segments.join("/"),
+    )
+  )
+    return true;
+  if (
+    /^agents\/[a-z][a-z0-9_-]{2,79}\/(rollback|versions\/[1-9]\d*\/(governance|evaluations|submit|approve|publish|disable|invocations))$/.test(
       segments.join("/"),
     )
   )

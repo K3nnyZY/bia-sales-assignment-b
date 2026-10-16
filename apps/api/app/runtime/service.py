@@ -11,6 +11,9 @@ from sqlalchemy.orm import Session
 from app.agents.models import Agent, AgentVersion
 from app.agents.schemas import AgentConfiguration
 from app.core.config import Settings
+from app.governance.audit import record
+from app.governance.models import Publication
+from app.governance.runtime import evaluation_allowed, published_allowed
 from app.runtime.context import ExecutionContext
 from app.runtime.errors import ExecutionError
 from app.runtime.graph import BILLING_GRAPH, BillingState
@@ -18,7 +21,14 @@ from app.runtime.models import AgentRun, InvocationGrant, RunEvent
 from app.runtime.schemas import RunCreate
 
 
-def admission(session: Session, settings: Settings, user_id: str, data: RunCreate) -> AgentVersion:
+def admission(
+    session: Session,
+    settings: Settings,
+    user_id: str,
+    data: RunCreate,
+    *,
+    evaluation_id: str | None = None,
+) -> AgentVersion:
     if not settings.enable_local_runtime or settings.app_env not in {"development", "test"}:
         raise HTTPException(
             503,
@@ -27,12 +37,33 @@ def admission(session: Session, settings: Settings, user_id: str, data: RunCreat
                 "message": "Only the explicitly enabled local preview runtime is available",
             },
         )
-    version = session.get(AgentVersion, (data.agent_id, data.version))
+    number = data.version or 1
+    if data.channel == "published" and evaluation_id is None:
+        pointer = session.get(Publication, data.agent_id)
+        if (
+            not pointer
+            or not pointer.enabled
+            or (data.version is not None and data.version != pointer.version_number)
+        ):
+            raise HTTPException(
+                409,
+                detail={
+                    "code": "NO_ACTIVE_PUBLICATION",
+                    "message": "Select the active published version",
+                },
+            )
+        number = pointer.version_number
+    version = session.get(AgentVersion, (data.agent_id, number))
     if version is None:
         raise HTTPException(404, detail={"code": "NOT_FOUND", "message": "Version not found"})
-    grant = session.get(InvocationGrant, (data.agent_id, data.version, user_id))
+    grant = session.get(InvocationGrant, (data.agent_id, number, user_id))
     agent = session.get(Agent, data.agent_id)
-    if grant is None or not grant.enabled or agent.status != "draft":
+    entitled = (
+        evaluation_allowed(session, evaluation_id, user_id, version)
+        if evaluation_id
+        else bool(grant and grant.enabled)
+    )
+    if not entitled or agent.status != "draft":
         raise HTTPException(
             403,
             detail={
@@ -57,13 +88,30 @@ def admission(session: Session, settings: Settings, user_id: str, data: RunCreat
                 "message": "The version has no registered runtime workflow",
             },
         )
+    if (
+        data.channel == "published"
+        and evaluation_id is None
+        and not published_allowed(session, version, data.mode)
+    ):
+        raise HTTPException(
+            409,
+            detail={
+                "code": "PUBLICATION_GATE_BLOCKED",
+                "message": "The active publication no longer passes policy",
+            },
+        )
     return version
 
 
 async def execute_run(
-    session: Session, settings: Settings, caller_id: str, data: RunCreate
+    session: Session,
+    settings: Settings,
+    caller_id: str,
+    data: RunCreate,
+    *,
+    evaluation_id: str | None = None,
 ) -> AgentRun:
-    version = admission(session, settings, caller_id, data)
+    version = admission(session, settings, caller_id, data, evaluation_id=evaluation_id)
     config = AgentConfiguration.model_validate(version.configuration)
     snapshot = version.snapshot
     run = AgentRun(
@@ -74,6 +122,8 @@ async def execute_run(
         model_id=version.model_id,
         config_hash=version.config_hash,
         mode=data.mode,
+        channel="evaluation" if evaluation_id else data.channel,
+        evaluation_id=evaluation_id,
     )
     session.add(run)
     session.commit()  # The run ID survives handled tool/model failures.
@@ -144,6 +194,19 @@ async def execute_run(
         Decimal(ctx.estimated_cost_usd) if ctx.estimated_cost_usd is not None else None
     )
     run.completed_at = datetime.now(UTC)
+    record(
+        session,
+        caller_id,
+        "run.finalized",
+        run.agent_id,
+        run.version_number,
+        run_id=run.id,
+        config_hash=run.config_hash,
+        channel=run.channel,
+        mode=run.mode,
+        status=run.status,
+        error_code=run.error_code,
+    )
     session.commit()
     session.refresh(run)
     return run

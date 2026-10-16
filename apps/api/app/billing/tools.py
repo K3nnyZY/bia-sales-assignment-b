@@ -19,6 +19,7 @@ from app.billing.contracts import (
     KnowledgeResult,
 )
 from app.billing.models import BillingKnowledge, Invoice
+from app.knowledge.runtime import RAG_ADAPTER, RAG_TOOL_ID, billing_retrieval
 from app.runtime.context import ExecutionContext
 from app.runtime.errors import ExecutionError
 from app.runtime.models import ToolCall
@@ -89,6 +90,7 @@ async def billing_knowledge(ctx: ExecutionContext, args: KnowledgeInput) -> Know
 
 
 IMPLEMENTATIONS = {
+    RAG_TOOL_ID: billing_retrieval,
     "invoice-lookup-v3": current_invoice,
     "invoice-previous-v1": previous_invoice,
     "billing-knowledge-v1": billing_knowledge,
@@ -118,7 +120,7 @@ async def execute_tool(ctx: ExecutionContext, tool_id: str, arguments: dict) -> 
                 {"timeout": str(timeout_ms)},
             )
             tool = authorize_tool(ctx, tool_id)
-            descriptor = ADAPTERS.get(tool_id)
+            descriptor = RAG_ADAPTER if tool_id == RAG_TOOL_ID else ADAPTERS.get(tool_id)
             if descriptor is None or tool_id not in IMPLEMENTATIONS:
                 raise ExecutionError(
                     "ADAPTER_NOT_REGISTERED",
@@ -176,6 +178,8 @@ async def execute_tool(ctx: ExecutionContext, tool_id: str, arguments: dict) -> 
                 references = (
                     [result["invoice_id"]]
                     if "invoice_id" in result
+                    else [item["reference"] for item in result["evidence"]]
+                    if "evidence" in result
                     else [f"{item['id']}@{item['version']}" for item in result["items"]]
                 )
             ctx.session.add(

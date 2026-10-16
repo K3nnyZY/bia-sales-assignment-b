@@ -5,7 +5,11 @@ from sqlalchemy import select
 
 from app.agents.models import Agent, AgentVersion
 from app.db.session import DatabaseSession
+from app.governance.models import Publication, VersionGovernance
+from app.governance.observability import metrics, visibility
+from app.governance.schemas import MetricsRead
 from app.identity.auth import CurrentUser
+from app.knowledge.models import KnowledgeSearch
 from app.runtime.models import AgentRun, InvocationGrant, RunEvent, ToolCall
 from app.runtime.schemas import ExecutableVersion, RunCreate, RunRead, TraceRead
 from app.runtime.service import execute_run
@@ -42,6 +46,11 @@ def executable_versions(session: DatabaseSession, user: CurrentUser, request: Re
             "model_provider": version.snapshot["model"]["provider"],
             "config_hash": version.config_hash,
             "local_preview": True,
+            "published": bool(
+                (pointer := session.get(Publication, agent.id))
+                and pointer.enabled
+                and pointer.version_number == version.number
+            ),
             "available_modes": ["deterministic"]
             if version.snapshot["model"]["provider"] == "synthetic"
             else (
@@ -61,6 +70,8 @@ def executable_versions(session: DatabaseSession, user: CurrentUser, request: Re
             ),
         }
         for agent, version in rows
+        if not (state := session.get(VersionGovernance, (agent.id, version.number)))
+        or state.stage != "disabled"
     ]
 
 
@@ -83,35 +94,43 @@ def list_runs(
 ):
     return session.scalars(
         select(AgentRun)
-        .where(AgentRun.caller_id == user.id)
+        .where(visibility(user))
         .order_by(AgentRun.started_at.desc(), AgentRun.id)
         .limit(limit)
     ).all()
 
 
-def own_run(session, user_id, run_id):
-    run = session.scalar(
-        select(AgentRun).where(AgentRun.id == run_id, AgentRun.caller_id == user_id)
-    )
+def own_run(session, user, run_id):
+    run = session.scalar(select(AgentRun).where(AgentRun.id == run_id, visibility(user)))
     if run is None:
         raise HTTPException(404, detail={"code": "NOT_FOUND", "message": "Run not found"})
     return run
 
 
+@router.get("/metrics", response_model=MetricsRead)
+def runtime_metrics(session: DatabaseSession, user: CurrentUser):
+    return metrics(session, user)
+
+
 @router.get("/runs/{run_id}", response_model=RunRead)
 def run_detail(run_id: str, session: DatabaseSession, user: CurrentUser):
-    return own_run(session, user.id, run_id)
+    return own_run(session, user, run_id)
 
 
 @router.get("/runs/{run_id}/trace", response_model=TraceRead)
 def run_trace(run_id: str, session: DatabaseSession, user: CurrentUser):
-    run = own_run(session, user.id, run_id)
+    run = own_run(session, user, run_id)
     return {
         "run": run,
         "events": session.scalars(
             select(RunEvent)
             .where(RunEvent.run_id == run.id)
             .order_by(RunEvent.started_at, RunEvent.id)
+        ).all(),
+        "knowledge_searches": session.scalars(
+            select(KnowledgeSearch)
+            .where(KnowledgeSearch.run_id == run.id)
+            .order_by(KnowledgeSearch.created_at)
         ).all(),
         "tool_calls": session.scalars(
             select(ToolCall)

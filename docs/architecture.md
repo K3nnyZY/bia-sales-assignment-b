@@ -6,11 +6,30 @@
 **Project:** BIA Agent Studio
 **Context:** BIA AI Engineer Challenge - Option B
 
-**Implementation checkpoint (2026-10-15):** Sprints 1–3 implement Foundation,
-Agent Management and a local Agent Runtime preview. This document describes the
-broader target architecture; publication, evaluations, approvals and RAG remain
-unimplemented. See [ADR-011](decisions/ADR-011-agent-runtime.md) and the
-[Sprint 3 report](sprint-3-report.md) for the implemented boundaries and results.
+**Implementation checkpoint (2026-10-16):** Sprints 1–5 implement Foundation,
+Agent Management, local LangGraph Runtime, Quality & Governance, and a small
+Knowledge & RAG pipeline. Knowledge collections, immutable document versions,
+bounded PDF/TXT/Markdown ingestion, pinned local multilingual semantic embeddings,
+pgvector + Spanish lexical retrieval, authorization/validity filters, citations,
+and retrieval traces are integrated with billing snapshots and publication gates.
+Originals use a bounded PostgreSQL-backed object-store abstraction; there is no
+S3 service. Chunking is a character-window baseline with overlap, not a complete
+structure-aware parser. Production SSO, recovery workers, OCR, enterprise quotas
+and external knowledge connectors remain outside this slice.
+The target architecture below is broader than the repository. See
+[ADR-011](decisions/ADR-011-agent-runtime.md),
+[ADR-012](decisions/ADR-012-quality-governance.md),
+[ADR-013](decisions/ADR-013-knowledge-rag.md), and the
+[Sprint 5 guide](sprint-5-guide.md) for implemented boundaries and verification.
+
+**Product integration update (2026-10-16):** `/dashboard` consolidates visible
+agent/collection inventory, caller-scoped execution metrics and recent trace
+links using the existing authenticated APIs. It shares its metrics presentation
+with Trace Viewer; there is no new analytics service or frontend permission
+engine. The public `/` infrastructure health page remains available. Browser
+tests create an isolated Knowledge collection through the UI, preserving previous
+documents and avoiding assumptions about top-k ranking in a shared corpus.
+This local integration does not add production identity or a public deployment.
 
 ---
 

@@ -4,6 +4,7 @@ from typing import Annotated, Literal
 from pydantic import AliasChoices, Field, model_validator
 
 from app.catalogs.schemas import Capability, Contract, Identifier, Name, Profile
+from app.knowledge.schemas import KnowledgeSelection
 
 AgentStatus = Literal["draft", "disabled", "deprecated"]
 
@@ -48,6 +49,7 @@ class AgentConfiguration(Contract):
     limits: ExecutionLimits = ExecutionLimits()
     security: SecurityPolicy = SecurityPolicy()
     workflow: WorkflowSelection | None = None
+    knowledge: KnowledgeSelection | None = None
 
     @model_validator(mode="after")
     def unique_references(self):

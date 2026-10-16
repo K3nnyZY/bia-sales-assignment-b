@@ -1,0 +1,811 @@
+{
+  "verified_at_utc": "2026-10-16T09:16:13.209142+00:00",
+  "scope": "Sprints 1-6 current working tree; local demo, not production certification",
+  "verdict": "local deterministic flow verified; delivery and production not approved unconditionally",
+  "critical_fix": {
+    "code": "AUD-FINAL-01",
+    "file": "apps/api/migrations/env.py",
+    "cause": "current_schema() starts a transaction before Alembic; engine.connect() rolls back that external transaction on close",
+    "fix": "engine.begin() owns and commits the migration transaction",
+    "regression_test": "apps/api/tests/test_database.py::test_alembic_cli_commits_migrations_on_its_own_connection",
+    "before": {
+      "failed": 1,
+      "seconds": 0.65
+    },
+    "after_targeted": {
+      "passed": 2,
+      "seconds": 2.68
+    }
+  },
+  "tests": {
+    "make_verify": {
+      "exit": 0,
+      "pytest_passed": 253,
+      "pytest_seconds": 57.09,
+      "ruff_files": 88,
+      "frontend_tests_passed": 15
+    },
+    "intermediate_verify": {
+      "exit": 2,
+      "pytest_passed": 253,
+      "pytest_seconds": 58.68,
+      "reason": "ghcr.io image metadata request timeout during lint build; retry and final make verify passed"
+    },
+    "e2e": {
+      "exit": 0,
+      "passed": 7,
+      "failed": 0,
+      "seconds": 13.8
+    },
+    "next_build": {
+      "exit": 0
+    },
+    "native_frontend_lint_typecheck_tests": {
+      "exit": 0,
+      "tests_passed": 15
+    },
+    "clean_database": {
+      "temporary_container": "bia-audit-clean-e7c17e35d0",
+      "published_ports": false,
+      "initial_tables": 0,
+      "initial_vector_extension": 0,
+      "revision": "0005_knowledge_rag",
+      "table_count": 27,
+      "pgvector": "0.8.7",
+      "postgres_server_version_num": "160015",
+      "upgrade_replay_downgrade_upgrade_check": "passed",
+      "readiness": {
+        "status": "ok",
+        "service": "bia-api",
+        "database": "ok",
+        "migrations": "ok"
+      },
+      "seed_replay_counts": [
+        {
+          "users": 10,
+          "agents": 1,
+          "agent_versions": 2,
+          "invoices": 8,
+          "knowledge_versions": 2,
+          "knowledge_chunks": 2
+        },
+        {
+          "users": 10,
+          "agents": 1,
+          "agent_versions": 2,
+          "invoices": 8,
+          "knowledge_versions": 2,
+          "knowledge_chunks": 2
+        }
+      ],
+      "fresh_run_id": "run-70552efa3c8942839f0941c02eaed7d3",
+      "fresh_comparison_cop": "64400.00",
+      "fresh_cross_customer": "denied",
+      "status": "passed",
+      "temporary_container_removed": true
+    }
+  },
+  "ui": {
+    "agent_id": "final-audit-1792141809869",
+    "document_id": "final-audit-1792141809869",
+    "steps": [
+      "document_upload_and_ingestion_ui",
+      "document_approval_search_citation_ui",
+      "agent_configuration_and_frozen_snapshot_ui",
+      "evaluation_9_of_9_and_submission_ui",
+      "independent_approval_and_publication_ui",
+      "published_langgraph_invoice_rag_and_trace_ui"
+    ],
+    "run": {
+      "id": "run-09d0d33e71ba40ec8b2ab735e8b155a9",
+      "agent_id": "final-audit-1792141809869",
+      "version_number": 1,
+      "caller_id": "demo-creator",
+      "model_id": "synthetic-balanced-v1",
+      "config_hash": "63add8c8c6db6699079117698fc2362b3b101dcc8c009444f6f85ad79f030dcb",
+      "workflow_version": "billing_workflow_v1:1.0.0",
+      "mode": "deterministic",
+      "channel": "published",
+      "evaluation_id": null,
+      "status": "completed",
+      "answer": "Modo determinista de prueba; sin llamada a un proveedor.\n\nLa factura INV-1002 de 2026-09 registra 420.000 kWh a 820.0000 COP/kWh: 344400.00 COP de cargo por consumo.\n\nFrente a INV-1001 (350.000 kWh y 280000.00 COP), el consumo varió 70.000 kWh y el cargo varió 64400.00 COP (23.00%).\n\nEfecto del consumo: 56000.00 COP; efecto de la tarifa: 8400.00 COP; ajuste de redondeo: 0.00 COP. Cálculos realizados en Python con Decimal.\n\nFuente aprobada [billing-tariffs-rag@1#chunk-0] — Tarifas sintéticas 2026: «# Tarifas sintéticas\nEn agosto de 2026 la tarifa es 800 COP/kWh y en septiembre 820 COP/kWh. El cargo por consumo es kWh multiplicado por tarifa. Estos valores son exclusivamente de demostración.»\n\nFuente aprobada [billing-faq-rag@1#chunk-0] — FAQ de facturación sintética: «# Preguntas frecuentes\nEl cargo por consumo combina consumo y tarifa del período. Más consumo o una tarifa mayor pueden aumentar la factura. Esta demostración no incluye impuestos, cargos fijos ni otros conceptos. Para comparar se usa la factura del mes calendario anterior. No existen escrituras financieras.»\n\nFuente aprobada [final-audit-1792141809869@1#chunk-0] — FAQ sintética final de entrega: «# Auditoria final-audit-1792141809869\nLa facturacion sintetica compara consumo de energia y tarifa. En septiembre de 2026 la tarifa de referencia es 820 COP/kWh. Los calculos de facturas se realizan en Python.»\n\nReferencias: INV-1002, INV-1001, billing-tariffs-rag@1#chunk-0, billing-faq-rag@1#chunk-0, final-audit-1792141809869@1#chunk-0",
+      "error_code": null,
+      "calculations": {
+        "difference_cop": "64400.00",
+        "rate_effect_cop": "8400.00",
+        "percentage_change": "23.00",
+        "current_charge_cop": "344400.00",
+        "previous_charge_cop": "280000.00",
+        "consumption_effect_cop": "56000.00",
+        "rounding_adjustment_cop": "0.00",
+        "consumption_difference_kwh": "70.000"
+      },
+      "references": [
+        "INV-1002",
+        "INV-1001",
+        "billing-tariffs-rag@1#chunk-0",
+        "billing-faq-rag@1#chunk-0",
+        "final-audit-1792141809869@1#chunk-0"
+      ],
+      "input_tokens": null,
+      "output_tokens": null,
+      "estimated_cost_usd": null,
+      "started_at": "2026-10-16T09:10:17.378526Z",
+      "completed_at": "2026-10-16T09:10:17.758974Z"
+    },
+    "trace": {
+      "run": {
+        "id": "run-09d0d33e71ba40ec8b2ab735e8b155a9",
+        "agent_id": "final-audit-1792141809869",
+        "version_number": 1,
+        "caller_id": "demo-creator",
+        "model_id": "synthetic-balanced-v1",
+        "config_hash": "63add8c8c6db6699079117698fc2362b3b101dcc8c009444f6f85ad79f030dcb",
+        "workflow_version": "billing_workflow_v1:1.0.0",
+        "mode": "deterministic",
+        "channel": "published",
+        "evaluation_id": null,
+        "status": "completed",
+        "answer": "Modo determinista de prueba; sin llamada a un proveedor.\n\nLa factura INV-1002 de 2026-09 registra 420.000 kWh a 820.0000 COP/kWh: 344400.00 COP de cargo por consumo.\n\nFrente a INV-1001 (350.000 kWh y 280000.00 COP), el consumo varió 70.000 kWh y el cargo varió 64400.00 COP (23.00%).\n\nEfecto del consumo: 56000.00 COP; efecto de la tarifa: 8400.00 COP; ajuste de redondeo: 0.00 COP. Cálculos realizados en Python con Decimal.\n\nFuente aprobada [billing-tariffs-rag@1#chunk-0] — Tarifas sintéticas 2026: «# Tarifas sintéticas\nEn agosto de 2026 la tarifa es 800 COP/kWh y en septiembre 820 COP/kWh. El cargo por consumo es kWh multiplicado por tarifa. Estos valores son exclusivamente de demostración.»\n\nFuente aprobada [billing-faq-rag@1#chunk-0] — FAQ de facturación sintética: «# Preguntas frecuentes\nEl cargo por consumo combina consumo y tarifa del período. Más consumo o una tarifa mayor pueden aumentar la factura. Esta demostración no incluye impuestos, cargos fijos ni otros conceptos. Para comparar se usa la factura del mes calendario anterior. No existen escrituras financieras.»\n\nFuente aprobada [final-audit-1792141809869@1#chunk-0] — FAQ sintética final de entrega: «# Auditoria final-audit-1792141809869\nLa facturacion sintetica compara consumo de energia y tarifa. En septiembre de 2026 la tarifa de referencia es 820 COP/kWh. Los calculos de facturas se realizan en Python.»\n\nReferencias: INV-1002, INV-1001, billing-tariffs-rag@1#chunk-0, billing-faq-rag@1#chunk-0, final-audit-1792141809869@1#chunk-0",
+        "error_code": null,
+        "calculations": {
+          "difference_cop": "64400.00",
+          "rate_effect_cop": "8400.00",
+          "percentage_change": "23.00",
+          "current_charge_cop": "344400.00",
+          "previous_charge_cop": "280000.00",
+          "consumption_effect_cop": "56000.00",
+          "rounding_adjustment_cop": "0.00",
+          "consumption_difference_kwh": "70.000"
+        },
+        "references": [
+          "INV-1002",
+          "INV-1001",
+          "billing-tariffs-rag@1#chunk-0",
+          "billing-faq-rag@1#chunk-0",
+          "final-audit-1792141809869@1#chunk-0"
+        ],
+        "input_tokens": null,
+        "output_tokens": null,
+        "estimated_cost_usd": null,
+        "started_at": "2026-10-16T09:10:17.378526Z",
+        "completed_at": "2026-10-16T09:10:17.758974Z"
+      },
+      "events": [
+        {
+          "step": 1,
+          "node": "authorize",
+          "status": "completed",
+          "error_code": null,
+          "started_at": "2026-10-16T09:10:17.413788Z",
+          "duration_ms": 27
+        },
+        {
+          "step": 2,
+          "node": "route",
+          "status": "completed",
+          "error_code": null,
+          "started_at": "2026-10-16T09:10:17.443327Z",
+          "duration_ms": 0
+        },
+        {
+          "step": 3,
+          "node": "invoice",
+          "status": "completed",
+          "error_code": null,
+          "started_at": "2026-10-16T09:10:17.445277Z",
+          "duration_ms": 28
+        },
+        {
+          "step": 4,
+          "node": "previous",
+          "status": "completed",
+          "error_code": null,
+          "started_at": "2026-10-16T09:10:17.475893Z",
+          "duration_ms": 34
+        },
+        {
+          "step": 5,
+          "node": "knowledge",
+          "status": "completed",
+          "error_code": null,
+          "started_at": "2026-10-16T09:10:17.512095Z",
+          "duration_ms": 50
+        },
+        {
+          "step": 6,
+          "node": "calculate",
+          "status": "completed",
+          "error_code": null,
+          "started_at": "2026-10-16T09:10:17.565566Z",
+          "duration_ms": 1
+        },
+        {
+          "step": 7,
+          "node": "generate",
+          "status": "completed",
+          "error_code": null,
+          "started_at": "2026-10-16T09:10:17.570228Z",
+          "duration_ms": 36
+        },
+        {
+          "step": 8,
+          "node": "validate_output",
+          "status": "completed",
+          "error_code": null,
+          "started_at": "2026-10-16T09:10:17.608689Z",
+          "duration_ms": 138
+        },
+        {
+          "step": 9,
+          "node": "finalize",
+          "status": "completed",
+          "error_code": null,
+          "started_at": "2026-10-16T09:10:17.749552Z",
+          "duration_ms": 1
+        }
+      ],
+      "tool_calls": [
+        {
+          "id": "call-1397b29f9969417aa7990dec6700a394",
+          "tool_id": "invoice-lookup-v3",
+          "tool_version": "3.0.0",
+          "arguments": {
+            "invoice_id": "INV-1002"
+          },
+          "result_references": [
+            "INV-1002"
+          ],
+          "attempt": 1,
+          "status": "completed",
+          "error_code": null,
+          "started_at": "2026-10-16T09:10:17.445293Z",
+          "completed_at": "2026-10-16T09:10:17.472143Z",
+          "duration_ms": 26
+        },
+        {
+          "id": "call-aa7aa692b2544788b7b1ec182cc2793b",
+          "tool_id": "invoice-previous-v1",
+          "tool_version": "1.0.0",
+          "arguments": {
+            "invoice_id": "INV-1002"
+          },
+          "result_references": [
+            "INV-1001"
+          ],
+          "attempt": 1,
+          "status": "completed",
+          "error_code": null,
+          "started_at": "2026-10-16T09:10:17.475901Z",
+          "completed_at": "2026-10-16T09:10:17.508580Z",
+          "duration_ms": 32
+        },
+        {
+          "id": "call-1970a70c989547e681ad6793cad1e420",
+          "tool_id": "billing-knowledge-v2",
+          "tool_version": "2.0.0",
+          "arguments": {
+            "period": "2026-09-01"
+          },
+          "result_references": [
+            "billing-tariffs-rag@1#chunk-0",
+            "billing-faq-rag@1#chunk-0",
+            "final-audit-1792141809869@1#chunk-0"
+          ],
+          "attempt": 1,
+          "status": "completed",
+          "error_code": null,
+          "started_at": "2026-10-16T09:10:17.512110Z",
+          "completed_at": "2026-10-16T09:10:17.561708Z",
+          "duration_ms": 49
+        }
+      ],
+      "knowledge_searches": [
+        {
+          "id": "search-34a65c14bb7344aabe6a6a21b60270a8",
+          "run_id": "run-09d0d33e71ba40ec8b2ab735e8b155a9",
+          "caller_id": "demo-creator",
+          "as_of": "2026-09-01",
+          "collection_ids": [
+            "billing-reference"
+          ],
+          "references": [
+            {
+              "chunk": 0,
+              "score": 0.01639344262295082,
+              "version": 1,
+              "char_end": 195,
+              "valid_to": "2026-12-31",
+              "reference": "billing-tariffs-rag@1#chunk-0",
+              "char_start": 0,
+              "valid_from": "2026-08-01",
+              "document_id": "billing-tariffs-rag",
+              "content_hash": "a681733778ecab0a46f5d4932b0298a57f125dcecf0ba7e00e978c968577919a",
+              "lexical_rank": 0,
+              "collection_id": "billing-reference",
+              "semantic_similarity": 0.7645847061028915
+            },
+            {
+              "chunk": 0,
+              "score": 0.016129032258064516,
+              "version": 1,
+              "char_end": 309,
+              "valid_to": "2026-12-31",
+              "reference": "billing-faq-rag@1#chunk-0",
+              "char_start": 0,
+              "valid_from": "2026-08-01",
+              "document_id": "billing-faq-rag",
+              "content_hash": "f6553b1dbd54c39b44aba2b2d8cba0abbc1b21d820dfc600ecda63e31149d786",
+              "lexical_rank": 0,
+              "collection_id": "billing-reference",
+              "semantic_similarity": 0.6678374211691285
+            },
+            {
+              "chunk": 0,
+              "score": 0.015873015873015872,
+              "version": 1,
+              "char_end": 209,
+              "valid_to": "2026-12-31",
+              "reference": "final-audit-1792141809869@1#chunk-0",
+              "char_start": 0,
+              "valid_from": "2026-08-01",
+              "document_id": "final-audit-1792141809869",
+              "content_hash": "648119a4dd8a675fbfb27279bce47a1c899ad55ce95c6e2a372fc1e4276d1cf9",
+              "lexical_rank": 0,
+              "collection_id": "billing-reference",
+              "semantic_similarity": 0.6661501923889048
+            }
+          ],
+          "embedding_version": "model2vec-0.7.0:minishlab/potion-multilingual-128M@73908c3438cf03b6a01bcb9611d62b23d0726f08:256",
+          "mode": "hybrid-semantic",
+          "duration_ms": 11,
+          "error_code": null,
+          "created_at": "2026-10-16T09:10:17.512342Z"
+        }
+      ]
+    }
+  },
+  "publication_sql": {
+    "agent_id": "final-audit-1792141809869",
+    "version_number": 1,
+    "config_hash": "63add8c8c6db6699079117698fc2362b3b101dcc8c009444f6f85ad79f030dcb",
+    "stage": "published",
+    "evaluation_id": "eval-c12c9cb6dcd34afc8d009883e38b476d",
+    "evaluation_hash": "63add8c8c6db6699079117698fc2362b3b101dcc8c009444f6f85ad79f030dcb",
+    "evaluation_status": "passed",
+    "total": 9,
+    "passed_count": 9,
+    "approval_id": "apr-20599f7467964f09af0d726a367cab23",
+    "approval_hash": "63add8c8c6db6699079117698fc2362b3b101dcc8c009444f6f85ad79f030dcb",
+    "approval_status": "approved",
+    "requested_by": "demo-creator",
+    "decided_by": "demo-approver",
+    "run_id": "run-09d0d33e71ba40ec8b2ab735e8b155a9",
+    "run_hash": "63add8c8c6db6699079117698fc2362b3b101dcc8c009444f6f85ad79f030dcb",
+    "run_version": 1,
+    "channel": "published",
+    "mode": "deterministic"
+  },
+  "rag": {
+    "agent_id": "s5-audit-e4c612b95ab1",
+    "version": 1,
+    "config_hash": "be84216a41bebd966604566bc7959c3396881c3b1c29b4cedfcbe8d14bf30eec",
+    "documents": [
+      {
+        "document_id": "s5-audit-e4c612b95ab1-txt",
+        "format": "txt",
+        "extracted_characters": 1188,
+        "versions": 1,
+        "chunks": 2,
+        "vectors_hash": "20491689d3bc35dc581873f86642bf6a18d1c14dc073ce70f808eaaa9e7c9875",
+        "physical_vector_type": "vector(256)",
+        "real_embeddings_match_database": true
+      },
+      {
+        "document_id": "s5-audit-e4c612b95ab1-md",
+        "format": "md",
+        "extracted_characters": 1187,
+        "versions": 1,
+        "chunks": 2,
+        "vectors_hash": "01c0a1362844d0d96f65eaa41feee7eabf4e665dd19c402b4c4f5013d1f2a282",
+        "physical_vector_type": "vector(256)",
+        "real_embeddings_match_database": true
+      },
+      {
+        "document_id": "s5-audit-e4c612b95ab1-pdf",
+        "format": "pdf",
+        "extracted_characters": 1188,
+        "versions": 1,
+        "chunks": 2,
+        "vectors_hash": "498f3d41439a72ed9a66e68c86de24d3d7e7a0c67a772f6b809dfa4844b6c7e3",
+        "physical_vector_type": "vector(256)",
+        "real_embeddings_match_database": true
+      }
+    ],
+    "embedding_version": "model2vec-0.7.0:minishlab/potion-multilingual-128M@73908c3438cf03b6a01bcb9611d62b23d0726f08:256",
+    "date_filter_counts": {
+      "2026-07-31": 0,
+      "2026-08-01": 6,
+      "2026-09-30": 6,
+      "2026-10-01": 0
+    },
+    "unauthorized_http_status": 403,
+    "search_id": "search-ae16b1b49573464aa3fc59f8ab04969a",
+    "run_id": "run-fe4aed2ccf4e4e59bbe4f81d1c171b4a",
+    "persisted_citations": [
+      "s5-audit-e4c612b95ab1-pdf@1#chunk-0",
+      "s5-audit-e4c612b95ab1-txt@1#chunk-0",
+      "s5-audit-e4c612b95ab1-md@1#chunk-0",
+      "s5-audit-e4c612b95ab1-md@1#chunk-1"
+    ],
+    "nodes": 9,
+    "tools": [
+      "invoice-lookup-v3",
+      "invoice-previous-v1",
+      "billing-knowledge-v2"
+    ],
+    "difference_cop": "64400.00",
+    "percentage_change": "23.00",
+    "transactional_invoice_table": "invoices",
+    "transactional_invoice_ids": [
+      "INV-1001",
+      "INV-1002"
+    ],
+    "generation_mode": "deterministic",
+    "denied_run_id": "run-e13a012506434c2791eec20f0281d4fa",
+    "expired_knowledge_run_id": "run-aa9fd8c855ae49ac8c41a617f9a8bc86"
+  },
+  "metrics_sql": {
+    "metrics_match_sql": true,
+    "measured_runs": 352,
+    "tool_calls": 766,
+    "tool_errors": 151,
+    "latency_p50_ms": 47.653999999999996,
+    "latency_p95_ms": 238.05574999999988,
+    "publication_hash_chain_matches": true,
+    "agent_id": "quality-smoke-950178ebf40a",
+    "version": 1,
+    "config_hash": "39e211cf49deea0828ee5a9ff57c8f3edef3c66279b7329ef5abc05e2aa5e52c",
+    "evaluation_id": "eval-fe65c4f3d5b54a699c8226406e3bb5ab",
+    "approval_id": "apr-db1d12e8313d4404b7c9be891ef22c27",
+    "findings": []
+  },
+  "persistence_result": "PASS: run, StateGraph events, tool calls and retrieval log survive API restart.",
+  "ux": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "checks": {
+      "real_infrastructure_status": true,
+      "invalid_token_error": true,
+      "registry_empty_state": true,
+      "traces_empty_state": true,
+      "metrics_loading": true,
+      "mobile_no_horizontal_page_overflow": true
+    },
+    "pages": [
+      {
+        "path": "/",
+        "viewport": 390,
+        "document_width": 390,
+        "body_width": 390,
+        "overflowing_elements": []
+      },
+      {
+        "path": "/dashboard",
+        "viewport": 390,
+        "document_width": 390,
+        "body_width": 390,
+        "overflowing_elements": []
+      },
+      {
+        "path": "/agents",
+        "viewport": 390,
+        "document_width": 390,
+        "body_width": 390,
+        "overflowing_elements": []
+      },
+      {
+        "path": "/models",
+        "viewport": 390,
+        "document_width": 390,
+        "body_width": 390,
+        "overflowing_elements": []
+      },
+      {
+        "path": "/tools",
+        "viewport": 390,
+        "document_width": 390,
+        "body_width": 390,
+        "overflowing_elements": []
+      },
+      {
+        "path": "/knowledge",
+        "viewport": 390,
+        "document_width": 390,
+        "body_width": 390,
+        "overflowing_elements": []
+      },
+      {
+        "path": "/playground",
+        "viewport": 390,
+        "document_width": 390,
+        "body_width": 390,
+        "overflowing_elements": []
+      },
+      {
+        "path": "/evaluations",
+        "viewport": 390,
+        "document_width": 390,
+        "body_width": 390,
+        "overflowing_elements": [
+          {
+            "tag": "BUTTON",
+            "class": "secondary",
+            "right": 489
+          },
+          {
+            "tag": "BUTTON",
+            "class": "secondary",
+            "right": 489
+          },
+          {
+            "tag": "BUTTON",
+            "class": "secondary",
+            "right": 489
+          },
+          {
+            "tag": "BUTTON",
+            "class": "secondary",
+            "right": 489
+          },
+          {
+            "tag": "BUTTON",
+            "class": "secondary",
+            "right": 489
+          },
+          {
+            "tag": "BUTTON",
+            "class": "secondary",
+            "right": 489
+          },
+          {
+            "tag": "BUTTON",
+            "class": "secondary",
+            "right": 489
+          },
+          {
+            "tag": "BUTTON",
+            "class": "secondary",
+            "right": 489
+          },
+          {
+            "tag": "BUTTON",
+            "class": "secondary",
+            "right": 489
+          },
+          {
+            "tag": "BUTTON",
+            "class": "secondary",
+            "right": 489
+          },
+          {
+            "tag": "BUTTON",
+            "class": "secondary",
+            "right": 489
+          },
+          {
+            "tag": "BUTTON",
+            "class": "secondary",
+            "right": 489
+          }
+        ]
+      },
+      {
+        "path": "/traces",
+        "viewport": 390,
+        "document_width": 390,
+        "body_width": 390,
+        "overflowing_elements": []
+      },
+      {
+        "path": "/agents/billing-assistant",
+        "viewport": 390,
+        "document_width": 390,
+        "body_width": 390,
+        "overflowing_elements": []
+      }
+    ]
+  },
+  "security": {
+    "production_flag_guards": [
+      {
+        "demo_auth": true,
+        "local_runtime": false,
+        "rejected": true
+      },
+      {
+        "demo_auth": false,
+        "local_runtime": true,
+        "rejected": true
+      },
+      {
+        "demo_auth": true,
+        "local_runtime": true,
+        "rejected": true
+      }
+    ],
+    "production_http": {
+      "/health": 200,
+      "/api/v1/me": 503,
+      "/api/v1/runs": 503
+    },
+    "production_identity_implemented": false,
+    "anonymous_with_spoofed_admin_headers": {
+      "/me": 401,
+      "/users": 401,
+      "/models?approved_only=false": 401,
+      "/tools?approved_only=false": 401,
+      "/agents": 401,
+      "/evaluation-suites": 401,
+      "/evaluations": 401,
+      "/approvals": 401,
+      "/audit-events": 401,
+      "/metrics": 401,
+      "/runs": 401,
+      "/runtime/agents": 401,
+      "/knowledge/collections": 401,
+      "/knowledge/searches": 401
+    },
+    "viewer_admin_reads": {
+      "/users": 403,
+      "/models?approved_only=false": 403,
+      "/tools?approved_only=false": 403
+    },
+    "api_uid": 1000,
+    "env_file_in_api_image": false,
+    "packages": {
+      "langgraph": "1.2.15",
+      "litellm": "1.105.1",
+      "pgvector": "0.4.2",
+      "model2vec": "0.7.0",
+      "pypdf": "6.19.0",
+      "python-multipart": "0.0.31"
+    },
+    "actual_graph_class": "CompiledStateGraph"
+  },
+  "web_image": {
+    "uid": 1000,
+    "node_env": "production",
+    "provider_env_present": false,
+    "env_file_in_image": false,
+    "browser_files_scanned": 21,
+    "findings": []
+  },
+  "secrets": {
+    "current_files_scanned": 171,
+    "browser_static_files_scanned": 21,
+    "historical_blobs_scanned": 239,
+    "configured_server_secret_count": 1,
+    "env_tracked": false,
+    "env_ignored": true,
+    "findings": [],
+    "limitations": "Pattern and exact-value scan; cannot prove absence of every possible credential or rotation of externally shared keys."
+  },
+  "env_mode": "0o600",
+  "dependencies": {
+    "python": {
+      "packages_scanned": 107,
+      "advisories": 0,
+      "exit": 0
+    },
+    "npm_all": {
+      "exit": 1,
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 5,
+      "critical": 0,
+      "total": 5
+    },
+    "npm_runtime": {
+      "exit": 0,
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    }
+  },
+  "provider": {
+    "smoke_make_exit": 2,
+    "generation_passed": false,
+    "diagnostic": {
+      "run_id": "run-1b79561ec864467f84df670eedd90f51",
+      "model_id": "openai-gpt54-mini-20260317",
+      "status": "failed",
+      "error_code": "MODEL_UNAVAILABLE",
+      "mode": "provider",
+      "input_tokens": null,
+      "output_tokens": null,
+      "estimated_cost_usd": null,
+      "sdk_diagnostic": {
+        "exception_class": "RateLimitError",
+        "status_code": 429,
+        "code": "429",
+        "provider_code": "credit_balance_exhausted",
+        "provider_type": "insufficient_quota"
+      },
+      "events": [
+        {
+          "node": "authorize",
+          "status": "completed",
+          "error_code": null
+        },
+        {
+          "node": "route",
+          "status": "completed",
+          "error_code": null
+        },
+        {
+          "node": "invoice",
+          "status": "completed",
+          "error_code": null
+        },
+        {
+          "node": "previous",
+          "status": "completed",
+          "error_code": null
+        },
+        {
+          "node": "knowledge",
+          "status": "completed",
+          "error_code": null
+        },
+        {
+          "node": "calculate",
+          "status": "completed",
+          "error_code": null
+        },
+        {
+          "node": "generate",
+          "status": "failed",
+          "error_code": "MODEL_UNAVAILABLE"
+        },
+        {
+          "node": "failure",
+          "status": "completed",
+          "error_code": null
+        }
+      ]
+    },
+    "diagnostic_wrapper": "Transparent wrapper around original provider_completion; real SDK call, no authorization mocks; only exception class/status/code recorded"
+  },
+  "git": {
+    "head": "2a0035b",
+    "title": "sprint 3",
+    "modified_tracked_entries": 40,
+    "untracked_entries": 41,
+    "tracked_governance_files": 0,
+    "tracked_knowledge_files": 0
+  },
+  "modified_in_this_audit": [
+    "apps/api/migrations/env.py",
+    "apps/api/tests/test_database.py",
+    "README.md",
+    "docs/final-demo-guide.md",
+    "docs/final-audit.md",
+    "docs/final-audit-evidence.json"
+  ],
+  "not_verified": [
+    "Public deployment/TLS/production identity",
+    "Clean Git checkout and remote CI",
+    "OS image CVE scan",
+    "Production load and backup/restore",
+    "Externally shared key rotation",
+    "Complete native installation from scratch",
+    "Universal prompt-injection resistance or general retrieval quality"
+  ]
+}

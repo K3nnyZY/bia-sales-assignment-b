@@ -50,6 +50,10 @@ class AgentRun(Base):
             "status IN ('running','completed','denied','failed','escalated')", name="status"
         ),
         CheckConstraint("mode IN ('deterministic','provider')", name="mode"),
+        CheckConstraint("channel IN ('preview','published','evaluation')", name="channel"),
+        CheckConstraint(
+            "(channel = 'evaluation') = (evaluation_id IS NOT NULL)", name="evaluation_channel"
+        ),
         CheckConstraint("input_tokens IS NULL OR input_tokens >= 0", name="input_tokens"),
         CheckConstraint("output_tokens IS NULL OR output_tokens >= 0", name="output_tokens"),
         CheckConstraint("estimated_cost_usd IS NULL OR estimated_cost_usd >= 0", name="cost"),
@@ -68,6 +72,16 @@ class AgentRun(Base):
     config_hash: Mapped[str] = mapped_column(String(64))
     workflow_version: Mapped[str] = mapped_column(String(40), default="billing_workflow_v1:1.0.0")
     mode: Mapped[str] = mapped_column(String(16))
+    channel: Mapped[str] = mapped_column(String(16), default="preview", server_default="preview")
+    evaluation_id: Mapped[str | None] = mapped_column(
+        ForeignKey(
+            "evaluation_runs.id",
+            name="fk_agent_runs_evaluation_id_evaluation_runs",
+            ondelete="RESTRICT",
+            use_alter=True,
+        ),
+        index=True,
+    )
     status: Mapped[str] = mapped_column(String(16), default="running")
     answer: Mapped[str | None] = mapped_column(Text)
     error_code: Mapped[str | None] = mapped_column(String(64))

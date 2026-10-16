@@ -22,7 +22,9 @@ def test_readiness_checks_revision(client, monkeypatch, heads, status_code, migr
     client.app.dependency_overrides[get_session] = lambda: session
     migration_context = MagicMock()
     migration_context.get_current_heads.return_value = heads
-    monkeypatch.setattr("app.api.health.MigrationContext.configure", lambda _: migration_context)
+    monkeypatch.setattr(
+        "app.api.health.MigrationContext.configure", lambda _, **kwargs: migration_context
+    )
     response = client.get("/health/ready")
     assert response.status_code == status_code
     assert response.json()["database"] == "ok"

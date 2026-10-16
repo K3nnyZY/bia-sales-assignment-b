@@ -6,6 +6,7 @@ export type ExecutableVersion = {
   model_provider: string;
   config_hash: string;
   local_preview: true;
+  published: boolean;
   available_modes: ("deterministic" | "provider")[];
 };
 
@@ -19,6 +20,8 @@ export type RunResult = {
   workflow_version: string;
   mode: "deterministic" | "provider";
   status: "running" | "completed" | "denied" | "failed" | "escalated";
+  channel: "preview" | "published" | "evaluation";
+  evaluation_id: string | null;
   answer: string | null;
   error_code: string | null;
   calculations: Record<string, string | null>;
@@ -39,6 +42,19 @@ export type RunTrace = {
     error_code: string | null;
     started_at: string;
     duration_ms: number;
+  }[];
+  knowledge_searches: {
+    id: string;
+    duration_ms: number;
+    embedding_version: string;
+    mode: string;
+    error_code: string | null;
+    references: {
+      reference: string;
+      document_id: string;
+      version: number;
+      chunk: number;
+    }[];
   }[];
   tool_calls: {
     id: string;

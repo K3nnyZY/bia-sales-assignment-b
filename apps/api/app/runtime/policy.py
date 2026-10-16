@@ -4,6 +4,7 @@ from app.agents.models import Agent, AgentVersion
 from app.agents.service import configuration_hash
 from app.catalogs.models import Model, Tool
 from app.catalogs.schemas import ModelCreate, ToolCreate
+from app.governance.runtime import check_runtime_channel
 from app.identity.models import User
 from app.runtime.context import ExecutionContext
 from app.runtime.errors import ExecutionError
@@ -34,7 +35,7 @@ def authorize_context(ctx: ExecutionContext) -> User:
         select(Agent).where(Agent.id == ctx.run.agent_id).with_for_update(read=True)
     )
     version = session.get(AgentVersion, (ctx.run.agent_id, ctx.run.version_number))
-    if not grant or agent is None or agent.status != "draft":
+    if agent is None or agent.status != "draft":
         deny("INVOCATION_FORBIDDEN", "La invocación está deshabilitada o no está autorizada.")
     if (
         version is None
@@ -42,6 +43,7 @@ def authorize_context(ctx: ExecutionContext) -> User:
         or version.config_hash != ctx.run.config_hash
     ):
         deny("VERSION_NOT_EXECUTABLE", "Se requiere la versión congelada autorizada.")
+    check_runtime_channel(session, ctx.run, ctx.caller_id, version, grant)
     if configuration_hash(ctx.snapshot) != version.config_hash:
         deny("SNAPSHOT_MISMATCH", "La configuración efectiva no coincide con su hash.")
     model = session.scalar(
@@ -51,6 +53,20 @@ def authorize_context(ctx: ExecutionContext) -> User:
         deny("MODEL_NOT_APPROVED", "El modelo ya no está aprobado.")
     if ModelCreate.model_validate(model).model_dump(mode="json") != ctx.snapshot["model"]:
         deny("MODEL_MISMATCH", "La definición del modelo no coincide con la versión.")
+    if ctx.config.knowledge:
+        from app.knowledge.service import pinned_documents
+
+        owner_id = ctx.snapshot["agent"]["owner_id"]
+        try:
+            if pinned_documents(session, ctx.config.knowledge, owner_id) != ctx.snapshot.get(
+                "knowledge"
+            ):
+                deny(
+                    "KNOWLEDGE_CHANGED",
+                    "Las referencias documentales no coinciden con el snapshot.",
+                )
+        except Exception:
+            deny("KNOWLEDGE_NOT_APPROVED", "El conocimiento fijado ya no está autorizado.")
     return user
 
 

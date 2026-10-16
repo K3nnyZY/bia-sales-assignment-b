@@ -9,3 +9,5 @@
 .venv
 .tools
 **/*.tsbuildinfo
+
+.cache/

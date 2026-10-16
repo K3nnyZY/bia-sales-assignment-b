@@ -6,11 +6,13 @@ from pydantic import Field
 
 from app.billing.contracts import InvoiceId
 from app.catalogs.schemas import Contract, Identifier
+from app.knowledge.schemas import SearchLogRead
 
 
 class RunCreate(Contract):
     agent_id: Identifier = "billing-assistant"
-    version: Annotated[int, Field(ge=1)] = 1
+    version: Annotated[int, Field(ge=1)] | None = None
+    channel: Literal["preview", "published"] = "preview"
     message: Annotated[str, Field(min_length=1, max_length=4000)]
     invoice_id: InvoiceId | None = None
     task: Literal["auto", "invoice", "compare", "knowledge"] = "auto"
@@ -27,6 +29,8 @@ class RunRead(Contract):
     config_hash: str
     workflow_version: str
     mode: Literal["deterministic", "provider"]
+    channel: Literal["preview", "published", "evaluation"]
+    evaluation_id: str | None
     status: Literal["running", "completed", "denied", "failed", "escalated"]
     answer: str | None
     error_code: str | None
@@ -66,6 +70,7 @@ class TraceRead(Contract):
     run: RunRead
     events: list[EventRead]
     tool_calls: list[ToolCallRead]
+    knowledge_searches: list[SearchLogRead] = []
 
 
 class ExecutableVersion(Contract):
@@ -77,3 +82,4 @@ class ExecutableVersion(Contract):
     config_hash: str
     local_preview: Literal[True] = True
     available_modes: list[Literal["deterministic", "provider"]]
+    published: bool = False

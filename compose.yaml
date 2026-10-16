@@ -14,7 +14,7 @@ x-api: &api
 
 services:
   postgres:
-    image: postgres:16-bookworm
+    image: pgvector/pgvector:0.8.7-pg16-bookworm
     environment:
       POSTGRES_DB: ${POSTGRES_DB:?Copy .env.example to .env}
       POSTGRES_USER: ${POSTGRES_USER:?Copy .env.example to .env}

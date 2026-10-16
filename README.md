@@ -1,13 +1,35 @@
-# BIA Agent Studio — Sprint 3: Agent Runtime
+# BIA Agent Studio — Integración local
+
+**Verificación local (2026-10-16): comprobaciones funcionales aprobadas.**
+Dashboard con datos reales, 253 pruebas backend, 15 frontend y siete E2E aprobados.
+Se corrigieron el aislamiento de Knowledge y las dependencias Python vulnerables.
+La entrega pública sigue pendiente: autenticación productiva, validación de
+hosting y versión completa en Git; quedan cinco avisos de tooling npm sin parche
+publicado compatible. Consulta las [correcciones y resultados](docs/sprint-6-fixes.md),
+la [auditoría final](docs/final-audit.md) y la [guía de demo](docs/final-demo-guide.md).
 
 Monorepo con Next.js 16 (TypeScript, App Router), FastAPI, PostgreSQL 16,
 SQLAlchemy 2, Alembic, Pytest y Ruff. Implementa Foundation, Agent Management
 y Agent Runtime de [la arquitectura](docs/architecture.md). LangGraph ejecuta
 un billing-assistant con facturas sintéticas, autorización por cliente,
 cálculos Decimal, tarifas/FAQ aprobadas y trazas persistidas. Incluye Playground
-y gateway LiteLLM opcional. No implementa RAG, evaluaciones ni publicación.
+y gateway LiteLLM opcional. Sprint 4 añade evaluaciones versionadas, aprobación
+independiente, publicación con gate de hash exacto, rollback y observabilidad.
+Sprint 5 integra colecciones/documentos versionados, ingesta PDF/TXT/Markdown,
+embeddings semánticos locales, pgvector y búsqueda híbrida con filtros de permisos
+y vigencia, citas verificables y trazas. Consulta la [guía del Sprint 5](docs/sprint-5-guide.md),
+[ADR-013](docs/decisions/ADR-013-knowledge-rag.md), el
+[reporte del Sprint 5](docs/sprint-5-report.md) y la [guía del Sprint 4](docs/sprint-4-guide.md),
+[ADR-012](docs/decisions/ADR-012-quality-governance.md) y el
+[reporte de verificación](docs/sprint-4-report.md).
+La [auditoría del Sprint 5](docs/sprint-5-audit.md) verifica ingesta nueva,
+vectores y referencias contra PostgreSQL; documenta y corrige KW-01
+(preservación de espacios en evidencia).
+La [auditoría del Sprint 4](docs/sprint-4-audit.md) del 16 de octubre documenta
+la verificación inicial. El hallazgo de visibilidad por agente quedó
+[corregido y verificado](docs/sprint-4-aud01-fix.md).
 Las decisiones están en [ADR-010](docs/decisions/ADR-010-agent-management.md) y
-[ADR-011](docs/decisions/ADR-011-agent-runtime.md); los resultados de esta entrega
+[ADR-011](docs/decisions/ADR-011-agent-runtime.md); los resultados históricos del runtime
 están en el [reporte del Sprint 3](docs/sprint-3-report.md) y su
 [verificación de cierre con evidencia](docs/sprint-3-verification.md).
 
@@ -45,6 +67,14 @@ checks y ejecuta:
 3. ESLint, TypeScript y pruebas de clientes HTTP y rutas permitidas del frontend.
 4. Un smoke test HTTP de frontend → FastAPI → PostgreSQL y Alembic.
 5. Un smoke test del runtime: comparación, traza y rechazo entre clientes.
+6. Un smoke de gobernanza: configurar, evaluar, aprobar, publicar, ejecutar,
+   auditar, rollback y bloqueo de una candidata con fallos críticos.
+7. Un smoke RAG: embeddings reales, retrieval autorizado, citas, comparación y trazas.
+
+Los smokes crean historial sintético real; no llaman a proveedores LLM.
+El primer build descarga aproximadamente 507 MiB de pesos de embeddings locales
+con revisión fija. Los archivos originales (máximo 2 MiB), vectores y trazas se
+persisten en PostgreSQL. La imagen pgvector conserva el volumen PostgreSQL 16.
 
 Los ejemplos HTTP directos de esta guía usan el puerto predeterminado 8000.
 En el Mac verificado se cambió `.env` a `API_PORT=8001` por un conflicto de
@@ -65,8 +95,12 @@ docker compose exec -T api alembic -c apps/api/alembic.ini current
 docker compose exec -T api alembic -c apps/api/alembic.ini check
 docker compose exec -T postgres psql -U bia -d bia_studio -c 'SELECT version_num FROM alembic_version;'
 open http://localhost:3000
+open http://localhost:3000/dashboard
 open http://localhost:3000/agents
+open http://localhost:3000/knowledge
 open http://localhost:3000/playground
+open http://localhost:3000/evaluations
+open http://localhost:3000/traces
 ```
 
 La API de readiness debe devolver:
@@ -80,6 +114,15 @@ La ruta del frontend `/api/health` debe envolver esa respuesta en
 pulsar **Actualizar estado**. Los indicadores proceden de la API; no hay
 métricas simuladas. La documentación OpenAPI está en `http://localhost:8000/docs`.
 El servicio `migrate` debe aparecer como `Exited (0)`; es un trabajo de una sola ejecución.
+
+## Dashboard
+
+Abre `http://localhost:3000/dashboard` y entra con un token de Studio. El panel
+consulta el inventario visible, `/metrics` y las últimas cinco ejecuciones;
+respeta el scope que aplica el backend. Permite actualizar datos y abrir una
+traza real. Un viewer sin ejecuciones ve estados vacíos, sin costos ni latencias
+inventadas. El panel de métricas se comparte con Trazas. La portada `/` conserva
+la comprobación pública de infraestructura.
 
 ## Usar Agent Management
 
@@ -136,7 +179,8 @@ invocaciones desde una configuración. Solo está habilitado en development/test
 6. Intenta `INV-2002`: termina `denied / INVOICE_NOT_ACCESSIBLE`, sin evidencia.
    Cierra sesión y entra con `DEMO_CUSTOMER_B_TOKEN`: esa factura sí está
    autorizada para B; `INV-1002` queda denegada. B no puede consultar las trazas
-   del creator. El administrador tampoco puede consultar ejecuciones ajenas.
+   del creator. El administrador tampoco puede consultar ejecuciones preview/published ajenas.
+   El rol auditor sí puede inspeccionarlas de forma explícita.
 7. Con el token creator, compara `INV-1001`: falta la factura de julio y la
    herramienta de período anterior falla con `PREVIOUS_INVOICE_UNAVAILABLE`.
    El run termina `escalated`; la traza muestra el intento fallido y `failure`,
@@ -151,7 +195,9 @@ el mes calendario inmediatamente anterior, no cualquier factura histórica.
 La falta de factura previa o tarifa vigente produce `escalated` sin inventar datos.
 
 Los documentos son datos sintéticos aprobados con versión y vigencia. Se
-consultan mediante SQL controlado; no hay búsqueda vectorial ni pipeline RAG.
+consultan mediante SQL controlado en snapshots legacy del Sprint 3. Los snapshots
+con `knowledge.documents` y `billing-knowledge-v2` utilizan el pipeline RAG del
+Sprint 5; consulta [su guía](docs/sprint-5-guide.md).
 La identidad viene exclusivamente del token autenticado. Cada acceso vuelve a
 validar permisos del caller, permisos congelados del agente, grant, aprobación
 y definición exacta de modelo/herramienta. Al liberar la respuesta se revalida
@@ -163,9 +209,9 @@ la evidencia, incluidas las revocaciones durante la generación.
 | --- | --- | --- |
 | Versiones disponibles y modos | `GET /api/v1/runtime/agents` | Solo grants explícitos del caller |
 | Ejecutar snapshot local | `POST /api/v1/runs` | Grant + políticas + propiedad de cada factura |
-| Historial | `GET /api/v1/runs` | Solo ejecuciones del caller |
-| Resultado persistido | `GET /api/v1/runs/{id}` | Solo caller; otro usuario recibe 404 |
-| Traza persistida | `GET /api/v1/runs/{id}/trace` | Solo caller; otro usuario recibe 404 |
+| Historial | `GET /api/v1/runs` | Caller; auditor global; evaluaciones según rol/propietario |
+| Resultado persistido | `GET /api/v1/runs/{id}` | Caller, auditor o evaluación autorizada; resto 404 |
+| Traza persistida | `GET /api/v1/runs/{id}/trace` | Caller, auditor o evaluación autorizada; resto 404 |
 
 Ejemplo después de cargar los seeds; en una base nueva la versión es 1. Usa
 `GET /api/v1/runtime/agents` para elegir el número exacto si ya hay historial:
@@ -247,6 +293,24 @@ no forma parte de `make verify` ni CI. v1 sigue disponible en modo determinista.
 La [definición JSON del modelo](docs/examples/openai-gpt54-mini.json) usa el
 snapshot y los precios de la [ficha oficial](https://developers.openai.com/api/docs/models/gpt-5.4-mini).
 No se registran ni aprueban modelos automáticamente al ejecutar el smoke.
+
+## Quality & Governance
+
+La [guía paso a paso](docs/sprint-4-guide.md) documenta roles, endpoints,
+contratos, pruebas de seguridad, publicación, rollback y uso del Trace Viewer.
+
+```sh
+make demo-env
+make governance-seed
+make governance-smoke
+open http://localhost:3000/evaluations
+open http://localhost:3000/traces
+```
+
+`make verify` incluye estos seeds y el smoke. El escenario crea un agente
+`quality-smoke-*`; no publica ni modifica billing-assistant automáticamente.
+La selección **Published** del Playground exige una publicación aprobada
+vigente; **Preview** conserva el flujo de pruebas local del Sprint 3.
 
 ## API y autorización
 
@@ -378,6 +442,8 @@ apps/
       agents/            # Registry, configuraciones y versionamiento
       billing/           # Facturas, contratos, adaptadores y cálculos Decimal
       runtime/           # LangGraph, política, gateway, runs, trazas y seed
+      governance/        # Suites, evaluación, gate, aprobación, publicación y métricas
+      knowledge/         # Ingesta, embeddings, retrieval autorizado y referencias
       core/config.py      # Variables de entorno validadas con Pydantic
       db/base.py          # Base declarativa y nombres de constraints
       db/session.py       # Engine y sesiones por petición
@@ -418,6 +484,8 @@ mediante Compose o `make dev-web`.
 | `ENABLE_DEMO_AUTH` | `false` por defecto en código; `.env.example` la activa solo para demo local |
 | `DEMO_ADMIN_TOKEN`, `DEMO_CREATOR_TOKEN`, `DEMO_VIEWER_TOKEN` | Credenciales sintéticas para el seed explícito |
 | `DEMO_CUSTOMER_B_TOKEN` | Segundo cliente de facturación, mínimo 24 caracteres |
+| `DEMO_REVIEWER_TOKEN`, `DEMO_APPROVER_TOKEN`, `DEMO_AUDITOR_TOKEN` | Roles de calidad separados, seed explícito |
+| `EVALUATION_TIMEOUT_SECONDS` | 60 s; timeout global del evaluador, máximo 90 s |
 | `ENABLE_LOCAL_RUNTIME` | `false` en código; habilita preview local explícito, bloqueado en producción |
 | `ENABLE_PROVIDER_RUNTIME` | `false`; requiere también modelo aprobado y credencial del servidor |
 | `RUNTIME_TIMEOUT_SECONDS` | 30 s; límite del servidor (máximo configurable 120 s) |
@@ -449,6 +517,11 @@ también `BACKEND_URL` si cambia `API_PORT`, y `CORS_ORIGINS` si cambia `WEB_POR
 
 ## Migraciones
 
+La auditoría final corrigió la transacción de la CLI de Alembic: una conexión
+propia confirma el upgrade al salir. La regresión ejecuta la CLI en procesos
+separados y verifica tablas persistidas, replay y downgrade/upgrade. También se
+probó en un PostgreSQL temporal sin tablas ni extensión vector preexistentes.
+
 `migrate` espera a PostgreSQL y ejecuta `alembic upgrade head`. La API espera
 a que ese proceso termine correctamente; el frontend espera a la API.
 Una migración fallida impide completar el arranque.
@@ -464,6 +537,10 @@ JSON y relaciones de herramientas se verifica al confirmar la transacción.
 `agent_runs`, `tool_calls` y `run_events`. Incluye restricciones monetarias,
 FKs de versión y triggers para grants a snapshots, identidad de ejecución
 inmutable, finalización consistente, runs finalizados inmutables y logs append-only.
+`0004_quality_governance` añade siete tablas de gobernanza, canal/FK de
+evaluación en runs, gates y triggers de historial inmutable/publicación atómica.
+`0005_knowledge_rag` añade colecciones, grants, originales, documentos/versiones,
+chunks vectoriales, búsquedas y restricciones de inmutabilidad.
 La prueba de integración usa un esquema temporal único y verifica:
 estado sin migrar → upgrade → repetición idempotente → ausencia de drift →
 downgrade a base → nuevo upgrade. El esquema temporal se elimina al terminar;
@@ -473,6 +550,8 @@ las tablas de la aplicación permanecen intactas.
 make migrate
 make seed
 make runtime-seed
+make governance-seed
+make knowledge-seed
 docker compose exec -T api alembic -c apps/api/alembic.ini current
 docker compose exec -T api alembic -c apps/api/alembic.ini check
 docker compose exec -T api alembic -c apps/api/alembic.ini upgrade head --sql
@@ -506,10 +585,13 @@ arranca únicamente PostgreSQL:
 make down
 make demo-env
 make install
+make knowledge-model
 docker compose up -d --wait postgres
 uv run --frozen alembic -c apps/api/alembic.ini upgrade head
 PYTHONPATH=apps/api uv run --frozen python -m app.seed
 PYTHONPATH=apps/api uv run --frozen python -m app.runtime.seed
+PYTHONPATH=apps/api uv run --frozen python -m app.governance.seed
+PYTHONPATH=apps/api uv run --frozen python -m app.knowledge.seed
 ```
 
 En dos terminales, desde la raíz:
@@ -557,7 +639,7 @@ prompt injection sin sustituir la autorización.
 Playwright usa el stack real, sin mocks de API o autorización; deja agentes
 sintéticos `e2e-*` con historial para comprobar persistencia y elimina su modelo
 temporal, además de ejecuciones sintéticas de facturación. CI está configurado
-para `make verify` y tres flujos de navegador con Chromium; no se ha ejecutado
+para `make verify` y siete flujos de navegador con Chromium; no se ha ejecutado
 CI remoto durante esta entrega.
 
 ## Operación y diagnóstico
@@ -566,6 +648,8 @@ CI remoto durante esta entrega.
 make up           # Construir y arrancar; no ejecuta la suite
 make seed         # Cargar identidades y catálogos sintéticos explícitamente
 make runtime-seed # Provisionar facturas, adapters, snapshot y grants locales
+make governance-seed # Roles de calidad, suite y fixtures aislados
+make governance-smoke # Ciclo completo y gate; sin consumo LLM
 make runtime-smoke # Flujo determinista y rechazo de acceso entre clientes
 make provider-smoke # Prueba optativa contra proveedor; puede consumir saldo
 make test         # Pytest con PostgreSQL real
@@ -596,12 +680,14 @@ muestra la indisponibilidad y permite reintentar con **Actualizar estado**.
 
 ## Límites y dependencias
 
-Esta entrega cubre los Sprints 1–3. La autenticación y los grants son una demo
+Esta entrega cubre los Sprints 1–6 de alcance local. La autenticación y los grants son una demo
 local explícita, no SSO de producción: el proceso rechaza autenticación demo o
-runtime local con `APP_ENV=production`. No hay evaluaciones, aprobaciones,
-publicación ni RAG. El flujo determinista no requiere claves de proveedores.
+runtime local con `APP_ENV=production`. Las evaluaciones y publicación son
+locales y usan fixtures explícitos; no hay grader LLM. Los snapshots legacy
+conservan SQL documental y los snapshots con referencias Knowledge utilizan RAG.
+El flujo determinista no requiere claves de proveedores.
 La ejecución síncrona está acotada, sin workers, colas ni recuperación de
-checkpoints. Una interrupción abrupta del proceso puede dejar un run `running`;
+checkpoints. Una interrupción abrupta del proceso puede dejar un run o evaluación `running`;
 no se implementa reconciliación automática. Las facturas son hipotéticas y
 solo modelan cargos por consumo, sin impuestos ni cargos fijos.
 
@@ -609,8 +695,10 @@ La base del Sprint 1 emplea CSS propio y un cliente ligero; se conserva para
 evitar una migración visual no necesaria a Tailwind/shadcn. La configuración
 incorpora un workflow tipado y versionado
 (`billing_workflow_v1:1.0.0`); no hay un catálogo administrable de workflows
-ni un Knowledge Registry completo. Las referencias de conocimiento se fijan
-en cada ejecución con su versión y se comprueban antes de responder.
+y el Knowledge Registry se limita al pipeline documentado en
+[ADR-013](docs/decisions/ADR-013-knowledge-rag.md). Las referencias documentales
+se fijan en el snapshot y se comprueban antes de responder. No hay OCR, S3,
+conectores externos, workers de ingesta ni cuotas globales.
 
 La auditoría de npm durante la validación del 15 de octubre de 2026 mostró
 cero vulnerabilidades en dependencias de ejecución (`npm audit --omit=dev`)
