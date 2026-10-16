@@ -29,7 +29,7 @@ FIXTURES = [
 ]
 
 
-def provision_fixtures(session: Session) -> None:
+def provision_evaluation_principals(session: Session) -> None:
     for uid in sorted(EVAL_PRINCIPALS):
         session.execute(
             insert(User)
@@ -43,6 +43,14 @@ def provision_fixtures(session: Session) -> None:
             )
             .on_conflict_do_nothing(index_elements=[User.id])
         )
+
+
+def provision_fixtures(session: Session) -> None:
+    provision_evaluation_principals(session)
+    seed_fixture_invoices(session)
+
+
+def seed_fixture_invoices(session: Session) -> None:
     for iid, uid, period, consumption, rate in FIXTURES:
         session.execute(
             insert(Invoice)
@@ -74,7 +82,14 @@ def seed_governance(session: Session, tokens: dict[str, str]) -> None:
             )
             .on_conflict_do_nothing(index_elements=[User.id])
         )
-    provision_fixtures(session)
+    provision_evaluation_principals(session)
+    seed_governance_data(session)
+    session.commit()
+
+
+def seed_governance_data(session: Session) -> None:
+    """Evaluation definitions/fictional invoices only; no identity provisioning."""
+    seed_fixture_invoices(session)
     owner = session.scalar(select(User).where(User.id == "demo-administrator"))
     if owner is None:
         raise ValueError("Run the base identity seed first")
@@ -92,7 +107,6 @@ def seed_governance(session: Session, tokens: dict[str, str]) -> None:
         .values(**data, suite_hash=configuration_hash(data), created_by=owner.id)
         .on_conflict_do_nothing(index_elements=[EvaluationSuite.id, EvaluationSuite.version])
     )
-    session.commit()
 
 
 def main() -> None:

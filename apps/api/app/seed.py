@@ -44,6 +44,12 @@ def seed(session: Session, tokens: dict[str, str]) -> None:
             )
             .on_conflict_do_nothing(index_elements=[User.id])
         )
+    seed_catalogs(session)
+    session.commit()
+
+
+def seed_catalogs(session: Session) -> None:
+    """Synthetic definitions only; never creates identities or access grants."""
     for profile, status in [
         ("economy", "approved"),
         ("balanced", "approved"),
@@ -86,7 +92,6 @@ def seed(session: Session, tokens: dict[str, str]) -> None:
             .values(**data.model_dump())
             .on_conflict_do_nothing(index_elements=[Tool.id])
         )
-    session.commit()
 
 
 def main() -> None:

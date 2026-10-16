@@ -43,6 +43,19 @@ synthetic demonstration, without corporate SSO/MFA or enterprise hardening. See
 [ADR-014](decisions/ADR-014-protected-deployment.md) and the
 [deployment guide](railway-deployment.md).
 
+**Explicit production demo initialization (2026-10-16):** the four local seed
+entrypoints retain their development-only authentication guards. Their synthetic
+data functions are reusable independently. Offline identity provisioning requires
+an explicit role/permission manifest; the separate atomic data bootstrap creates
+no users, credentials, invocation/retrieval grants, agent approvals or
+publications. A persisted immutable audit receipt makes repeated loading
+read-only, preserving operator changes and revocations. Predeploy executes only
+migrations. Explicit managed-access revocation retains all execution/audit
+history. No runtime or publication authorization boundary is changed. See the
+[bootstrap guide](production-demo-bootstrap.md) and
+[local verification](bootstrap-verification.md). The account owner reports a
+Railway deployment; its remote state has not been independently checked here.
+
 ---
 
 # 1. Overview

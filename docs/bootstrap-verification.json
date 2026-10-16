@@ -1,0 +1,103 @@
+{
+  "environment": "temporary local PostgreSQL database",
+  "commands": [
+    {
+      "command": ".venv/bin/python scripts/railway_credentials.py --access-only --directory <temporary-directory>",
+      "exit_code": 0
+    },
+    {
+      "command": ".venv/bin/python -m alembic -c apps/api/alembic.ini upgrade head",
+      "exit_code": 0
+    },
+    {
+      "command": ".venv/bin/python -m app.deployment.bootstrap provision-identities --manifest <temporary-directory>/railway-manifest.json --confirm-synthetic-demo",
+      "exit_code": 0
+    },
+    {
+      "command": ".venv/bin/python -m app.deployment.bootstrap load --confirm-synthetic-demo",
+      "exit_code": 0
+    },
+    {
+      "command": ".venv/bin/python -m app.deployment.bootstrap load --confirm-synthetic-demo",
+      "exit_code": 0
+    },
+    {
+      "command": ".venv/bin/python -m app.deployment.bootstrap status",
+      "exit_code": 0
+    },
+    {
+      "command": ".venv/bin/python -m app.deployment.bootstrap revoke-access --confirm-synthetic-demo",
+      "exit_code": 0
+    },
+    {
+      "command": ".venv/bin/python -m app.deployment.bootstrap status",
+      "exit_code": 0
+    }
+  ],
+  "status": "passed",
+  "before_revocation": {
+    "dataset": "billing-demo-v1",
+    "initialized": true,
+    "principals_provisioned": true,
+    "catalog_models": 4,
+    "catalog_tools": 9,
+    "knowledge_vectors": 2,
+    "embedding_dimensions": 256,
+    "valid_demo_tokens": 7,
+    "billing_versions": 1,
+    "synthetic_invoices": 8,
+    "evaluation_suites": 1,
+    "evaluation_runs": 0,
+    "documents": [
+      {
+        "id": "billing-faq-rag",
+        "version": 1,
+        "status": "ready",
+        "approval": "approved",
+        "chunks": 1,
+        "embedding_version": "model2vec-0.7.0:minishlab/potion-multilingual-128M@73908c3438cf03b6a01bcb9611d62b23d0726f08:256"
+      },
+      {
+        "id": "billing-tariffs-rag",
+        "version": 1,
+        "status": "ready",
+        "approval": "approved",
+        "chunks": 1,
+        "embedding_version": "model2vec-0.7.0:minishlab/potion-multilingual-128M@73908c3438cf03b6a01bcb9611d62b23d0726f08:256"
+      }
+    ]
+  },
+  "after_revocation": {
+    "dataset": "billing-demo-v1",
+    "initialized": true,
+    "principals_provisioned": true,
+    "catalog_models": 4,
+    "catalog_tools": 9,
+    "knowledge_vectors": 2,
+    "embedding_dimensions": 256,
+    "valid_demo_tokens": 0,
+    "billing_versions": 1,
+    "synthetic_invoices": 8,
+    "evaluation_suites": 1,
+    "evaluation_runs": 0,
+    "documents": [
+      {
+        "id": "billing-faq-rag",
+        "version": 1,
+        "status": "ready",
+        "approval": "approved",
+        "chunks": 1,
+        "embedding_version": "model2vec-0.7.0:minishlab/potion-multilingual-128M@73908c3438cf03b6a01bcb9611d62b23d0726f08:256"
+      },
+      {
+        "id": "billing-tariffs-rag",
+        "version": 1,
+        "status": "ready",
+        "approval": "approved",
+        "chunks": 1,
+        "embedding_version": "model2vec-0.7.0:minishlab/potion-multilingual-128M@73908c3438cf03b6a01bcb9611d62b23d0726f08:256"
+      }
+    ]
+  },
+  "sanitization": "Only temporary paths were replaced; no credentials or hashes are included."
+}

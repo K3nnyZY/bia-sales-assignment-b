@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.db.session import get_session
-from app.deployment.bootstrap import ROLES, bootstrap
+from app.deployment.bootstrap import ROLES, bootstrap, provision_identities
 from app.identity.credentials import issue, private_json
 from app.identity.models import AccessToken, User
 from app.main import create_app
@@ -64,13 +64,18 @@ def test_secure_deployment_full_flow(db_engine):
         manifest[role] = {
             "id": "pat-" + uuid4().hex,
             "user_id": "demo-" + role,
+            "role": "viewer" if role == "customer-b" else role,
+            "permissions": ["invoices:read"] if role in {"creator", "customer-b"} else [],
             "token_hash": hashlib.sha256(token.encode()).hexdigest(),
             "expires_at": (datetime.now(UTC) + timedelta(hours=24)).isoformat(),
         }
     settings = production_settings()
     with Session(db_engine) as session:
-        bootstrap(session, settings, manifest)
-        bootstrap(session, settings, manifest)
+        provision_identities(session, settings, manifest)
+        session.commit()
+        bootstrap(session, settings)
+        session.commit()
+        bootstrap(session, settings)
         assert session.scalar(select(func.count()).select_from(AccessToken)) == len(ROLES)
         assert not any(
             user.token_hash == manifest["creator"]["token_hash"]
@@ -93,7 +98,7 @@ def test_secure_deployment_full_flow(db_engine):
                 **kwargs,
             )
             assert response.status_code == status, response.text
-            return response.json()
+            return response.json() if response.content else None
 
         assert client.get("/api/v1/me").status_code == 401
         assert (
@@ -104,6 +109,48 @@ def test_secure_deployment_full_flow(db_engine):
         )
         assert request("GET", "/me")["id"] == "demo-creator"
         assert request("GET", "/runtime/agents") == []
+        # Data loading grants no access. Only this explicit administrator action does.
+        for uid in [
+            "demo-creator",
+            "demo-customer-b",
+            "evaluation-customer-a",
+            "evaluation-customer-b",
+            "evaluation-no-permission",
+        ]:
+            request(
+                "PUT",
+                "/knowledge/collections/billing-reference/grants",
+                "administrator",
+                json={"user_id": uid, "clearance": "internal", "enabled": True},
+                status=204,
+            )
+        config = request("GET", "/agents/billing-assistant/versions/1")["configuration"]
+        config["tool_ids"] = ["invoice-lookup-v3", "invoice-previous-v1", "billing-knowledge-v2"]
+        config["knowledge"] = {
+            "documents": [
+                {"document_id": name, "version": 1}
+                for name in ["billing-tariffs-rag", "billing-faq-rag"]
+            ]
+        }
+        created = request(
+            "POST", "/agents/billing-assistant/versions", json={"configuration": config}, status=201
+        )
+        request(
+            "POST",
+            "/agents/billing-assistant/versions/2/snapshot",
+            json={"expected_revision": created["revision"]},
+        )
+        request(
+            "POST",
+            "/agents/billing-assistant/versions/2/invocations",
+            "administrator",
+            json={
+                "user_id": "demo-customer-b",
+                "enabled": True,
+                "reason": "Explicit synthetic cross-customer security check",
+            },
+            status=204,
+        )
         base = "/agents/billing-assistant/versions/2"
         digest = request("GET", base)["config_hash"]
         run_input = {
@@ -157,7 +204,8 @@ def test_secure_deployment_full_flow(db_engine):
             item = session.get(AccessToken, manifest["creator"]["id"])
             item.revoked = True
             session.commit()
-            bootstrap(session, settings, manifest)
+            bootstrap(session, settings)
+            provision_identities(session, settings, manifest)
             assert session.get(AccessToken, item.id).revoked
         request("GET", "/me", status=401)
         with Session(db_engine) as session:

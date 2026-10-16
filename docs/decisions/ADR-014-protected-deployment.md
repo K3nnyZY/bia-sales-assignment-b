@@ -26,8 +26,18 @@ Evaluations still use isolated synthetic invoices and real authorization.
 
 Railway IaC declares exactly three services and one PostgreSQL volume. Docker
 build contexts remain at repository root. The API default Docker stage is now
-production, rather than the final test stage. Predeploy runs Alembic and optional
-idempotent synthetic provisioning; it does not approve or publish versions.
+production, rather than the final test stage. Predeploy runs only Alembic.
+Provisioning is an explicit offline operator action, never an automatic deploy
+side effect. `provision-identities` requires a hash-only manifest declaring fixed
+least-privilege roles/permissions; existing identities and credentials cannot be
+overwritten, reactivated or extended. The separate `load` operation creates data
+only, with no users, tokens, invocation/retrieval grants, agent approvals or
+publications. An immutable audit receipt makes replay read-only; a transaction
+and savepoints roll back the entire dataset on ingestion failure. Reserved
+resource collisions fail without overwriting. An explicit `revoke-access`
+disables only the managed demonstration identities and revokes their credentials,
+including rotations, while retaining history. See
+[production demo bootstrap](../production-demo-bootstrap.md).
 The initial generator is deterministic and explicitly labeled. Embeddings are
 the existing pinned real local model; no paid model credentials are copied.
 

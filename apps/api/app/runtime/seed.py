@@ -48,6 +48,35 @@ def seed_runtime(
         )
         .on_conflict_do_nothing(index_elements=[User.id])
     )
+    number = seed_runtime_data(session, model_id)
+    for user_id in [owner.id, "demo-customer-b"]:
+        session.execute(
+            insert(InvocationGrant)
+            .values(
+                agent_id="billing-assistant", version_number=number, user_id=user_id, enabled=True
+            )
+            .on_conflict_do_nothing(
+                index_elements=[
+                    InvocationGrant.agent_id,
+                    InvocationGrant.version_number,
+                    InvocationGrant.user_id,
+                ]
+            )
+        )
+    session.commit()
+    return number
+
+
+def seed_runtime_data(
+    session: Session,
+    model_id: str = "synthetic-balanced-v1",
+) -> int:
+    """Load synthetic billing data, without identities or invocation grants."""
+    owner = session.get(User, "demo-creator")
+    if owner is None or not owner.active or "invoices:read" not in owner.permissions:
+        raise ValueError("Provision an active creator with invoices:read explicitly first")
+    if session.get(User, "demo-customer-b") is None:
+        raise ValueError("Provision synthetic customer B explicitly first")
     for tool_id, (name, version, input_type, output_type) in ADAPTERS.items():
         data = ToolCreate(
             id=tool_id,
@@ -163,19 +192,6 @@ def seed_runtime(
     if version is None:
         version = create_version(session, agent, VersionCreate(configuration=config), owner)
         freeze_version(session, agent, version)
-    for user_id in [owner.id, "demo-customer-b"]:
-        session.execute(
-            insert(InvocationGrant)
-            .values(agent_id=agent.id, version_number=version.number, user_id=user_id, enabled=True)
-            .on_conflict_do_nothing(
-                index_elements=[
-                    InvocationGrant.agent_id,
-                    InvocationGrant.version_number,
-                    InvocationGrant.user_id,
-                ]
-            )
-        )
-    session.commit()
     return version.number
 
 

@@ -14,7 +14,12 @@ from app.core.config import Settings
 from app.db.session import build_engine
 from app.governance.seed import EVAL_PRINCIPALS
 from app.identity.models import User
-from app.knowledge.models import KnowledgeCollection, KnowledgeDocument, KnowledgeGrant
+from app.knowledge.models import (
+    KnowledgeCollection,
+    KnowledgeDocument,
+    KnowledgeGrant,
+    KnowledgeVersion,
+)
 from app.knowledge.runtime import RAG_ADAPTER, RAG_TOOL_ID
 from app.knowledge.service import ingest, upload
 from app.runtime.models import InvocationGrant
@@ -68,53 +73,7 @@ def seed_knowledge(session: Session, settings: Settings) -> int:
                     index_elements=[KnowledgeGrant.collection_id, KnowledgeGrant.user_id]
                 )
             )
-    references = []
-    for docid, title, content in SOURCES:
-        doc = session.get(KnowledgeDocument, docid)
-        if doc is None:
-            doc = KnowledgeDocument(
-                id=docid, collection_id="billing-reference", title=title, owner_id=owner.id
-            )
-            session.add(doc)
-            session.flush()
-        ver = upload(
-            session,
-            doc,
-            content.encode(),
-            docid + ".md",
-            "synthetic://billing/" + docid,
-            date(2026, 8, 1),
-            date(2026, 12, 31),
-            owner,
-        )
-        if ver.status in {"pending", "failed"}:
-            ver = ingest(session, ver, settings, owner)
-        if ver.status != "ready" or ver.approval == "revoked":
-            raise ValueError(f"Document {docid} is unavailable ({ver.status}/{ver.approval})")
-        if ver.approval == "pending":
-            ver.approval, ver.approved_by = "approved", admin.id
-            session.commit()
-        references.append({"document_id": docid, "version": ver.number})
-    name, toolversion, input_type, output_type = RAG_ADAPTER
-    session.execute(
-        insert(Tool)
-        .values(
-            id=RAG_TOOL_ID,
-            name=name,
-            version=toolversion,
-            description="Retrieval híbrido autorizado de documentos fijados en el snapshot.",
-            input_schema=input_type.model_json_schema(),
-            output_schema=output_type.model_json_schema(mode="serialization"),
-            permissions=["invoices:read"],
-            operation="read",
-            timeout_seconds=5,
-            max_retries=0,
-            requires_resource_authorization=True,
-            audit_required=True,
-            status="approved",
-        )
-        .on_conflict_do_nothing(index_elements=[Tool.id])
-    )
+    references = seed_knowledge_data(session, settings, preserve_existing=False)
     session.flush()
     agent = session.scalar(select(Agent).where(Agent.id == "billing-assistant").with_for_update())
     base = session.scalar(
@@ -165,6 +124,82 @@ def seed_knowledge(session: Session, settings: Settings) -> int:
     number = found.number
     session.commit()
     return number
+
+
+def seed_knowledge_data(
+    session: Session, settings: Settings, *, preserve_existing: bool = True
+) -> list[dict]:
+    """Ingest synthetic documents/tool definition; never grant retrieval or invocation."""
+    owner = session.get(User, "demo-creator")
+    admin = session.get(User, "demo-administrator")
+    if not owner or not admin:
+        raise ValueError("Provision owner and administrative identity explicitly first")
+    coll = session.get(KnowledgeCollection, "billing-reference")
+    if coll is None:
+        session.add(
+            KnowledgeCollection(
+                id="billing-reference",
+                name="Billing · tarifas y FAQ sintéticas",
+                owner_id=owner.id,
+                classification="internal",
+            )
+        )
+        session.flush()
+    references = []
+    for docid, title, content in SOURCES:
+        doc = session.get(KnowledgeDocument, docid)
+        if doc is None:
+            doc = KnowledgeDocument(
+                id=docid, collection_id="billing-reference", title=title, owner_id=owner.id
+            )
+            session.add(doc)
+            session.flush()
+        if preserve_existing and doc.next_version > 1:
+            ver = session.get(KnowledgeVersion, (docid, 1))
+            if not ver or ver.status != "ready" or ver.approval != "approved":
+                raise ValueError("Existing demo documents are preserved; review them explicitly")
+            references.append({"document_id": docid, "version": ver.number})
+            continue
+        ver = upload(
+            session,
+            doc,
+            content.encode(),
+            docid + ".md",
+            "synthetic://billing/" + docid,
+            date(2026, 8, 1),
+            date(2026, 12, 31),
+            owner,
+        )
+        if ver.status in {"pending", "failed"}:
+            ver = ingest(session, ver, settings, owner)
+        if ver.status != "ready" or ver.approval == "revoked":
+            raise ValueError(f"Document {docid} is unavailable ({ver.status}/{ver.approval})")
+        if ver.approval == "pending":
+            ver.approval, ver.approved_by = "approved", admin.id
+            session.commit()
+        references.append({"document_id": docid, "version": ver.number})
+    name, toolversion, input_type, output_type = RAG_ADAPTER
+    session.execute(
+        insert(Tool)
+        .values(
+            id=RAG_TOOL_ID,
+            name=name,
+            version=toolversion,
+            description="Retrieval híbrido autorizado de documentos fijados en el snapshot.",
+            input_schema=input_type.model_json_schema(),
+            output_schema=output_type.model_json_schema(mode="serialization"),
+            permissions=["invoices:read"],
+            operation="read",
+            timeout_seconds=5,
+            max_retries=0,
+            requires_resource_authorization=True,
+            audit_required=True,
+            status="approved",
+        )
+        .on_conflict_do_nothing(index_elements=[Tool.id])
+    )
+    session.flush()
+    return references
 
 
 def main():

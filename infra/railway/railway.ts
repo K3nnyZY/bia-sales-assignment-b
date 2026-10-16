@@ -59,7 +59,6 @@ export default defineRailway(() => {
       POSTGRES_USER: postgres.env.POSTGRES_USER,
       POSTGRES_DB: postgres.env.POSTGRES_DB,
       POSTGRES_PASSWORD: postgres.env.POSTGRES_PASSWORD,
-      BIA_BOOTSTRAP_MANIFEST: JSON.stringify(secrets.manifest),
     },
     deploy: {
       preDeployTimeoutSeconds: 300,

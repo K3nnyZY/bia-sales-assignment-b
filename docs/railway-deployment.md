@@ -1,5 +1,9 @@
 # Despliegue manual en Railway
 
+Si FastAPI y PostgreSQL ya están desplegados, usa directamente
+[Inicialización explícita de la demo](production-demo-bootstrap.md). No crees
+recursos nuevos ni cambies credenciales de la base para ejecutar los seeds.
+
 Preparación local: 2026-10-16. **No se ha desplegado ni verificado ninguna URL
 de Railway.** Los comandos remotos de este documento los ejecuta el propietario
 de la cuenta. `init`, `config apply`, `up` y los servicios/volumen generan consumo.
@@ -89,11 +93,14 @@ usa su proxy del mismo origen, por lo que el Studio funciona sin abrir CORS.
 Si necesitas acceso directo desde una web diferente, añade exclusivamente su
 origen HTTPS exacto en la configuración IaC y vuelve a revisar/aplicar el plan.
 
-El predeploy ejecuta `scripts/railway-predeploy.sh`: Alembic `upgrade head` y
-aprovisionamiento sintético idempotente. Un fallo detiene el despliegue. El
-bootstrap no publica ni aprueba agentes y no restaura credenciales revocadas.
-La configuración conserva las credenciales de bootstrap hasta su vencimiento;
-no las renueva automáticamente. No se copia tu `.env` local.
+El predeploy ejecuta `scripts/railway-predeploy.sh`: únicamente Alembic
+`upgrade head`. Un fallo detiene el despliegue. Las identidades y datos se
+provisionan manualmente mediante la [guía de bootstrap](production-demo-bootstrap.md),
+en operaciones separadas y explícitas. No se copia tu `.env` local ni se renuevan
+credenciales o grants al desplegar.
+Los archivos de acceso de `.tools/` generados al preparar infraestructura no se
+registran automáticamente; utiliza las credenciales del subdirectorio
+`.tools/railway-demo-access/` que aprovisiones siguiendo esa guía.
 
 ## 4. Subir backend y frontend desde el monorepo
 
@@ -142,10 +149,15 @@ Esto todavía no verifica publicación ni facturación.
 
 ## 6. Probar el flujo desde la interfaz
 
+Antes de entrar, completa la provisión, carga y grants administrativos de la
+[guía de bootstrap](production-demo-bootstrap.md). Sin esas decisiones explícitas
+no hay acceso de invocación o retrieval. La guía de bootstrap utiliza
+`.tools/railway-demo-access/` para evitar sobrescribir los archivos de infraestructura.
+
 Para copiar el token del creador al portapapeles sin imprimirlo:
 
 ```sh
-python3 -c 'import json; print(json.load(open(".tools/railway-credentials.json"))["creator"]["token"], end="")' | pbcopy
+python3 -c 'import json; print(json.load(open(".tools/railway-demo-access/railway-credentials.json"))["creator"]["token"], end="")' | pbcopy
 open "$BIA_WEB_URL/agents"
 ```
 
@@ -153,10 +165,11 @@ Pégalo en **Token de acceso**. Los IDs `demo-*` identifican clientes y empleado
 sintéticos; su acceso desplegado requiere los tokens privados recién emitidos.
 Las cuentas de evaluación no tienen credenciales de login.
 
-1. En **Agentes**, abre `billing-assistant`. El bootstrap crea snapshots
-   candidatos, incluida una versión con RAG; aún no existe publicación activa.
-2. Selecciona el snapshot con conocimiento (`billing-reference`, normalmente v2)
-   y abre su gestión en **Evaluaciones**.
+1. En **Agentes**, abre `billing-assistant`. El bootstrap crea un snapshot v1
+   candidato sin publicar y documentos ingeridos; no crea grants ni v2 RAG.
+2. Configura una nueva versión RAG después de conceder explícitamente acceso
+   documental, siguiendo la guía de bootstrap; crea su snapshot y abre
+   **Evaluaciones**.
 3. Ejecuta la suite `billing-runtime` v1 en modo determinista. Revisa los nueve
    resultados persistidos; deben pasar antes de solicitar aprobación.
 4. Solicita aprobación como creador y cierra sesión.
@@ -179,7 +192,7 @@ el navegador automatizado, sin mocks ni llamadas a un proveedor LLM:
 ```sh
 npm ci
 E2E_BASE_URL="$BIA_WEB_URL" \
-BIA_CREDENTIALS_FILE="$PWD/.tools/railway-credentials.json" \
+BIA_CREDENTIALS_FILE="$PWD/.tools/railway-demo-access/railway-credentials.json" \
 PLAYWRIGHT_CHANNEL=chrome \
 node scripts/final_ui_audit.mjs
 ```
@@ -242,6 +255,10 @@ de runs interrumpidos y separación de credenciales PostgreSQL de migración y
 aplicación. No subas datos reales de clientes.
 
 ## Verificación local ejecutada
+
+Esta tabla registra la preparación anterior. La separación de datos/acceso
+posterior y sus resultados actuales están en
+[bootstrap-verification.md](bootstrap-verification.md).
 
 | Comando / comprobación | Resultado real |
 | --- | --- |

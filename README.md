@@ -5,8 +5,13 @@ Para desplegarlo manualmente con Railway CLI, sigue la
 migraciones y credenciales privadas con vencimiento. El despliegue y las URLs
 remotas todavía no están verificados; no actives identidad demo en producción.
 
+Si ya desplegaste API y PostgreSQL con `APP_ENV=production`, usa la
+[guía de bootstrap sintético](docs/production-demo-bootstrap.md): provisión
+explícita de identidades, carga atómica sin grants automáticos, verificación y
+revocación del acceso. No ejecutes los seeds locales cambiando flags de producción.
+
 **Verificación local (2026-10-16): comprobaciones funcionales aprobadas.**
-Dashboard con datos reales, 258 pruebas backend, 15 frontend y siete E2E aprobados.
+Dashboard con datos reales, 280 pruebas backend, 15 frontend y siete E2E aprobados.
 Se corrigieron el aislamiento de Knowledge y las dependencias Python vulnerables.
 La entrega pública sigue pendiente: validación de hosting y del flujo remoto;
 se preparó acceso privado con vencimiento, sin SSO/MFA. Quedan cinco avisos de tooling npm sin parche
