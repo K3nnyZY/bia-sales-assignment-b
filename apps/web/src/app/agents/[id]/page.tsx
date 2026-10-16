@@ -551,6 +551,13 @@ function AgentDetail() {
   const editable =
     user?.role === "administrator" ||
     (user?.role === "creator" && user.id === agent.data?.owner_id);
+  const deletionReason = !versions.data
+    ? "No se ha comprobado el historial. Espera a que cargue o reintenta la consulta."
+    : agent.data?.status !== "draft"
+      ? "Solo se pueden eliminar agentes cuyo registro esté en DRAFT."
+      : versions.data.length > 0
+        ? `Este agente tiene ${versions.data.length} versión(es) con historial que debe conservarse. DRAFT es el estado del registro, no indica que sus versiones sean eliminables. Puedes deshabilitarlo desde Identidad y estado.`
+        : "";
   function refreshVersions() {
     setSuccess("Versión guardada correctamente.");
     setSelected(null);
@@ -582,7 +589,25 @@ function AgentDetail() {
     <>
       <section className="intro compact">
         <Link href="/agents">← Inventario de agentes</Link>
-        <h1>{agent.data?.name || "Detalle del agente"}</h1>
+        <div className="panel-heading">
+          <h1>{agent.data?.name || "Detalle del agente"}</h1>
+          {editable && agent.data && (
+            <button
+              className="danger"
+              disabled={busy || Boolean(deletionReason)}
+              aria-describedby="agent-deletion-reason"
+              title={deletionReason || "Eliminar este borrador sin historial"}
+              onClick={() => setConfirmDelete(true)}
+            >
+              Eliminar agente
+            </button>
+          )}
+        </div>
+        {editable && agent.data && (
+          <p className="hint" id="agent-deletion-reason">
+            {deletionReason || "Puedes eliminar este borrador sin versiones. Se pedirá confirmación y el backend comprobará de nuevo tus permisos y el historial."}
+          </p>
+        )}
         <Link href="/evaluations">Evaluaciones y publicación</Link>
         <p className="technical-id">Identificador: {id}</p>
         <ContextHelp term="Agent" />
@@ -601,7 +626,7 @@ function AgentDetail() {
           Reintentar carga
         </button>
       )}
-      {agent.data && versions.data && models.data && tools.data ? (
+      {agent.data && versions.data ? (
         <div className="workspace detail">
           <aside>
             <MetadataForm
@@ -624,32 +649,26 @@ function AgentDetail() {
                   v{version.number} · {version.status}
                 </button>
               ))}
-              {editable && agent.data.status === "draft" && versions.data.length === 0 && (
-                <button
-                  className="danger"
-                  disabled={busy}
-                  onClick={() => setConfirmDelete(true)}
-                >
-                  Eliminar agente
-                </button>
-              )}
-              {editable && (agent.data.status !== "draft" || versions.data.length > 0) && (
-                <p className="hint">
-                  La eliminación no está permitida: solo se eliminan borradores
-                  sin versiones ni historial protegido. Conserva el historial y
-                  deshabilita el agente desde Identidad y estado.
-                </p>
-              )}
             </section>
           </aside>
-          <ConfigurationForm
-            key={`${current?.number || 0}:${current?.revision || 0}:${agent.data.revision}`}
-            agent={agent.data}
-            version={current}
-            models={models.data}
-            tools={tools.data}
-            refresh={refreshVersions}
-          />
+          {models.data && tools.data ? (
+            <ConfigurationForm
+              key={`${current?.number || 0}:${current?.revision || 0}:${agent.data.revision}`}
+              agent={agent.data}
+              version={current}
+              models={models.data}
+              tools={tools.data}
+              refresh={refreshVersions}
+            />
+          ) : (
+            <section className="panel">
+              <p role="status">
+                {models.error || tools.error
+                  ? "No se pudo cargar el catálogo para configurar el agente. Puedes reintentar sin perder acceso a sus metadatos."
+                  : "Cargando catálogos para la configuración…"}
+              </p>
+            </section>
+          )}
         </div>
       ) : (
         !loadError && <p role="status">Cargando configuración…</p>

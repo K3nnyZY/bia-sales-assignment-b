@@ -3,6 +3,7 @@ from sqlalchemy import select
 
 from app.catalogs.models import Model, Tool
 from app.catalogs.schemas import ModelCreate, StatusUpdate, ToolCreate, UserRead
+from app.catalogs.templates import tool_templates
 from app.db.session import DatabaseSession
 from app.governance.audit import record
 from app.identity.auth import CurrentUser, require_admin
@@ -89,6 +90,12 @@ def tools(session: DatabaseSession, user: CurrentUser, approved_only: bool = Tru
         require_admin(user)
     query = select(Tool).order_by(Tool.id)
     return session.scalars(query.where(Tool.status == "approved") if approved_only else query).all()
+
+
+@router.get("/tool-templates", response_model=list[ToolCreate])
+def available_tool_templates(user: CurrentUser):
+    require_admin(user)
+    return tool_templates()
 
 
 @router.get("/tools/{item_id}", response_model=ToolCreate)

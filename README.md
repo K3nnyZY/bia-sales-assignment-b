@@ -455,9 +455,17 @@ o una ejecución marcada como `failed`. Los datos ausentes se indican como no
 disponibles y las pruebas desconocidas conservan su identificador sin inventar
 su propósito ni diagnóstico.
 
-El botón **Eliminar agente** aparece para el propietario creator o administrador
-cuando el agente está en `draft` y no tiene versiones. Exige confirmación con el
-nombre del agente. `DELETE /api/v1/agents/{id}?expected_revision=N` revalida
+En **Herramientas → Añadir herramienta**, un administrador puede registrar las
+cuatro versiones implementadas de Billing, con contratos exactos obtenidos del
+backend, o introducir un contrato manual. Las plantillas se crean pendientes de
+aprobación. Un registro existente, incluso revocado, no se sobrescribe ni reactiva.
+Registrar herramientas no carga facturas, documentos ni concede permisos.
+
+El botón **Eliminar agente** aparece arriba en el detalle para el propietario
+creator o administrador. Solo se habilita cuando el registro está en `draft` y
+no tiene versiones; en otros casos explica por qué está bloqueado. DRAFT en el
+registro no es el estado de publicación de sus versiones. Exige confirmación con
+el nombre del agente. `DELETE /api/v1/agents/{id}?expected_revision=N` revalida
 autorización, revisión, estado e historial bajo bloqueo en el servidor. Se conserva
 la política existente: **también las versiones editables impiden borrar el agente**,
 pues tienen historial de auditoría que debe preservarse. Los agentes con historial
@@ -465,6 +473,8 @@ pueden deshabilitarse desde Identidad y estado. La eliminación conserva los eve
 de metadatos y registra `agent.deleted`. No requiere una migración nueva.
 
 Ver [detalles y verificación de UX](docs/ux-context-evaluations-deletion.md).
+La mejora posterior de acciones está documentada en
+[herramientas y eliminación visible](docs/catalog-and-agent-actions.md).
 
 ## Estructura
 

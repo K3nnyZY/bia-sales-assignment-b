@@ -1311,6 +1311,14 @@ Main sections:
 - Actual API-backed data
 - No fake operational metrics
 
+Implemented UI detail: administrators can register the four implemented Billing
+tool adapters from backend-provided contracts, or create a manual versioned
+definition. `GET /api/v1/tool-templates` is an administrator-only read operation;
+registration uses the existing catalog POST and approval PATCH endpoints. It does
+not install adapters, seed business data or grant permissions. Agent deletion is
+visible to authorized editors with a reason when blocked; logical `draft` status
+alone does not permit deleting version or execution history.
+
 ## 15.3 User Workflow
 
 An employee should be able to:

@@ -167,7 +167,7 @@ export function allowedStudioPath(segments: string[]): boolean {
   )
     return true;
   if (
-    /^(evaluation-suites|evaluations(?:\/eval-[a-f0-9]{32})?|approvals|audit-events|metrics)$/.test(
+    /^(tool-templates|evaluation-suites|evaluations(?:\/eval-[a-f0-9]{32})?|approvals|audit-events|metrics)$/.test(
       segments.join("/"),
     )
   )

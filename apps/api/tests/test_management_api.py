@@ -9,11 +9,13 @@ from test_management_unit import CONFIG
 
 from app.agents.models import Agent, AgentTool, AgentVersion
 from app.agents.service import configuration_hash
+from app.billing.contracts import ADAPTERS
 from app.catalogs.models import Model, Tool
 from app.catalogs.schemas import ModelCreate
 from app.governance.audit import record
 from app.governance.models import AuditEvent
 from app.identity.models import User
+from app.knowledge.runtime import RAG_ADAPTER, RAG_TOOL_ID
 from app.seed import seed
 
 pytestmark = pytest.mark.integration
@@ -242,6 +244,66 @@ def test_catalog_administration_requires_real_admin(studio, resource):
         ).status_code
         == 200
     )
+
+
+def test_implemented_tool_templates_require_admin_and_do_not_write_catalogs(studio, db_engine):
+    assert studio.get("/api/v1/tool-templates").status_code == 401
+    for role in ["creator", "viewer", "outsider", "inactive"]:
+        result = studio.get(
+            "/api/v1/tool-templates", headers=auth(role) | {"X-Role": "administrator"}
+        )
+        assert result.status_code == (401 if role == "inactive" else 403)
+    with Session(db_engine) as session:
+        before = session.scalar(select(func.count()).select_from(Tool))
+    response = studio.get("/api/v1/tool-templates", headers=auth("administrator"))
+    assert response.status_code == 200, response.text
+    templates = {tool["id"]: tool for tool in response.json()}
+    assert set(templates) == set(ADAPTERS) | {RAG_TOOL_ID}
+    for tid, (name, version, input_type, output_type) in (
+        ADAPTERS | {RAG_TOOL_ID: RAG_ADAPTER}
+    ).items():
+        spec = templates[tid]
+        assert (spec["name"], spec["version"]) == (name, version)
+        assert spec["input_schema"] == input_type.model_json_schema()
+        assert spec["output_schema"] == output_type.model_json_schema(mode="serialization")
+        assert spec["status"] == "pending" and spec["operation"] == "read"
+        assert spec["permissions"] == ["invoices:read"]
+        assert spec["requires_resource_authorization"] and spec["audit_required"]
+    with Session(db_engine) as session:
+        assert session.scalar(select(func.count()).select_from(Tool)) == before
+
+
+def test_admin_registers_each_implemented_tool_without_overwrite_or_permission_grants(
+    studio, db_engine
+):
+    with Session(db_engine) as session:
+        permissions = {user.id: list(user.permissions) for user in session.scalars(select(User))}
+    templates = studio.get("/api/v1/tool-templates", headers=auth("administrator")).json()
+    for spec in templates:
+        assert studio.post("/api/v1/tools", headers=auth("creator"), json=spec).status_code == 403
+        created = studio.post("/api/v1/tools", headers=auth("administrator"), json=spec)
+        assert created.status_code == 201 and created.json() == spec
+        path = "/api/v1/tools/" + spec["id"]
+        assert studio.get(path, headers=auth()).status_code == 403
+        assert (
+            studio.patch(
+                path, headers=auth("administrator"), json={"status": "revoked"}
+            ).status_code
+            == 200
+        )
+        duplicate = studio.post("/api/v1/tools", headers=auth("administrator"), json=spec)
+        assert duplicate.status_code == 409
+        stored = studio.get(path, headers=auth("administrator")).json()
+        assert stored == spec | {"status": "revoked"}
+        # Reading or retrying a template never restores a revoked tool.
+        assert (
+            studio.get("/api/v1/tool-templates", headers=auth("administrator")).status_code == 200
+        )
+        assert studio.get(path, headers=auth("administrator")).json()["status"] == "revoked"
+    with Session(db_engine) as session:
+        assert {
+            user.id: list(user.permissions) for user in session.scalars(select(User))
+        } == permissions
 
 
 def test_catalog_creation_validation_uniqueness_and_deletion(studio):

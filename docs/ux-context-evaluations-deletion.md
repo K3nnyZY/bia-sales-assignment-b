@@ -103,7 +103,7 @@ PLAYWRIGHT_CHANNEL=chrome npm run test:e2e
 1. Inicia sesión como creator y crea un agente sin configuración. Abre la ayuda.
 2. Pulsa Eliminar agente: comprueba el nombre, cancela y verifica que continúa.
 3. Confirma la eliminación y comprueba notificación y ausencia en el inventario.
-4. Guarda una versión de otro agente: el botón desaparece y se explica cómo
+4. Guarda una versión de otro agente: el botón queda deshabilitado y se explica cómo
    conservar su historial deshabilitándolo. El DELETE directo debe devolver 409.
 5. En Evaluaciones ejecuta la suite sobre un snapshot autorizado. Expande una
    prueba para ver su contrato, observaciones reales, error y traza disponible.

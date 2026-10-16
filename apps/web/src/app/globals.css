@@ -4,6 +4,12 @@
   --muted: #5b716c;
   --line: #dce5df;
 }
+.tool-template button {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
 .context-help { margin: 8px 0 16px; font-size: 13px; color: var(--muted); }
 .context-help summary { cursor: help; width: fit-content; }
 .context-help[open] p { padding: 12px; border-left: 3px solid var(--ink); background: #edf3ef; max-width: 70ch; }
