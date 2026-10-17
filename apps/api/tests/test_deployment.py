@@ -124,7 +124,8 @@ def test_secure_deployment_full_flow(db_engine):
                 json={"user_id": uid, "clearance": "internal", "enabled": True},
                 status=204,
             )
-        config = request("GET", "/agents/billing-assistant/versions/1")["configuration"]
+        source = request("GET", "/agents/billing-assistant/versions/1")
+        config = source["configuration"]
         config["tool_ids"] = ["invoice-lookup-v3", "invoice-previous-v1", "billing-knowledge-v2"]
         config["knowledge"] = {
             "documents": [
@@ -133,7 +134,14 @@ def test_secure_deployment_full_flow(db_engine):
             ]
         }
         created = request(
-            "POST", "/agents/billing-assistant/versions", json={"configuration": config}, status=201
+            "POST",
+            "/agents/billing-assistant/versions",
+            json={
+                "configuration": config,
+                "source_version": source["number"],
+                "expected_source_revision": source["revision"],
+            },
+            status=201,
         )
         request(
             "POST",

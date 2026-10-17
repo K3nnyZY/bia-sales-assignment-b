@@ -13,9 +13,10 @@ TOKENS = {
 }
 
 
-def call(path, body=None, role="creator", expected=200):
+def call(path, body=None, role="creator", expected=200, method=None):
     request = Request(
         BASE + path,
+        method=method,
         data=json.dumps(body).encode() if body is not None else None,
         headers={"Authorization": f"Bearer {TOKENS[role]}", "Content-Type": "application/json"},
     )
@@ -61,7 +62,27 @@ call(
 
 
 def candidate(configuration):
-    version = call(f"/agents/{agent_id}/versions", {"configuration": configuration}, expected=201)
+    versions = call(f"/agents/{agent_id}/versions")
+    draft = next((v for v in versions if v["status"] == "draft"), None)
+    if draft is not None:
+        # This fresh smoke-test agent owns only its automatically created initial draft.
+        assert draft["number"] == 1 and draft["source_version"] is None
+        version = call(
+            f"/agents/{agent_id}/versions/1",
+            {"expected_revision": draft["revision"], "configuration": configuration},
+            method="PUT",
+        )
+    else:
+        source = next(v for v in versions if v["status"] == "snapshot")
+        version = call(
+            f"/agents/{agent_id}/versions",
+            {
+                "source_version": source["number"],
+                "expected_source_revision": source["revision"],
+                "configuration": configuration,
+            },
+            expected=201,
+        )
     base = f"/agents/{agent_id}/versions/{version['number']}"
     frozen = call(base + "/snapshot", {"expected_revision": version["revision"]})
     return base, frozen

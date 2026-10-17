@@ -70,7 +70,7 @@ export type AgentVersion = {
   agent_id: string;
   number: number;
   source_version: number | null;
-  status: "draft" | "snapshot";
+  status: "draft" | "snapshot" | "discarded";
   revision: number;
   model_id: string;
   configuration: Configuration;
@@ -78,6 +78,8 @@ export type AgentVersion = {
   config_hash: string | null;
   created_by: string;
   created_at: string;
+  discarded_at: string | null;
+  discard_reason: string | null;
 };
 
 export class ApiError extends Error {

@@ -5,10 +5,12 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     ForeignKeyConstraint,
+    Index,
     Integer,
     String,
     Text,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -23,6 +25,7 @@ class Agent(Base):
     __table_args__ = (
         CheckConstraint("status IN ('draft','disabled','deprecated')", name="status"),
         CheckConstraint("next_version > 0 AND revision > 0", name="positive_counters"),
+        CheckConstraint("deleted_at IS NULL OR status = 'deprecated'", name="deleted_state"),
     )
 
     id: Mapped[str] = mapped_column(String(80), primary_key=True)
@@ -35,6 +38,7 @@ class Agent(Base):
     revision: Mapped[int] = mapped_column(Integer, default=1)
     next_version: Mapped[int] = mapped_column(Integer, default=1)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     @property
     def state(self) -> str:
@@ -60,10 +64,21 @@ class AgentVersion(Base):
         CheckConstraint(
             "source_version IS NULL OR source_version < number", name="source_precedes_version"
         ),
-        CheckConstraint("status IN ('draft','snapshot')", name="status"),
+        CheckConstraint("status IN ('draft','snapshot','discarded')", name="status"),
+        Index(
+            "uq_agent_versions_active_draft",
+            "agent_id",
+            unique=True,
+            postgresql_where=text("status = 'draft'"),
+        ),
+        CheckConstraint(
+            "(status = 'discarded' AND discarded_at IS NOT NULL AND discard_reason IS NOT NULL) OR "
+            "(status <> 'discarded' AND discarded_at IS NULL AND discard_reason IS NULL)",
+            name="discard_state",
+        ),
         CheckConstraint("jsonb_typeof(configuration) = 'object'", name="configuration_object"),
         CheckConstraint(
-            "(status = 'draft' AND snapshot IS NULL AND config_hash IS NULL) OR "
+            "(status IN ('draft','discarded') AND snapshot IS NULL AND config_hash IS NULL) OR "
             "(status = 'snapshot' AND jsonb_typeof(snapshot) = 'object' "
             "AND snapshot IS NOT NULL AND config_hash IS NOT NULL "
             "AND config_hash ~ '^[a-f0-9]{64}$')",
@@ -85,6 +100,8 @@ class AgentVersion(Base):
     config_hash: Mapped[str | None] = mapped_column(String(64))
     created_by: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    discarded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    discard_reason: Mapped[str | None] = mapped_column(String(80))
 
 
 class AgentTool(Base):

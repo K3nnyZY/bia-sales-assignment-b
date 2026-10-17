@@ -1,5 +1,10 @@
 # Herramientas versionadas y eliminación visible
 
+> Informe de la implementación anterior. La política de eliminación y el alta de
+> borradores quedan actualizadas por [Ciclo de vida de agentes](agent-lifecycle.md).
+> Solo Admin elimina; un borrador editable no bloquea el retiro si no hay snapshots.
+
+
 Fecha: 2026-10-16. Cambios locales; no se ejecutaron comandos en Railway.
 
 ## Herramientas

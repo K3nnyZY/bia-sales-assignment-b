@@ -68,7 +68,16 @@ def custom_version(engine, **changes):
         agent = session.scalar(
             select(Agent).where(Agent.id == "billing-assistant").with_for_update()
         )
-        version = create_version(session, agent, VersionCreate(configuration=config), owner)
+        version = create_version(
+            session,
+            agent,
+            VersionCreate(
+                configuration=config,
+                source_version=old.number,
+                expected_source_revision=old.revision,
+            ),
+            owner,
+        )
         freeze_version(session, agent, version)
         session.add(
             InvocationGrant(

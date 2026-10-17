@@ -25,19 +25,28 @@ def new_agent(client, agent_id="test-agent", role="creator"):
     result = client.post(
         "/api/v1/agents",
         headers=auth(role),
-        json={"id": agent_id, "name": "Test Agent", "department": "Billing"},
+        json={
+            "id": agent_id,
+            "name": "Test Agent",
+            "department": "Billing",
+            "configuration": CONFIG,
+        },
     )
     assert result.status_code == 201, result.text
     return result.json()
 
 
 def new_version(client, agent_id="test-agent", config=None):
-    result = client.post(
-        f"/api/v1/agents/{agent_id}/versions",
+    if config is None:
+        result = client.get(f"/api/v1/agents/{agent_id}/versions/1", headers=auth())
+        assert result.status_code == 200, result.text
+        return result.json()
+    result = client.put(
+        f"/api/v1/agents/{agent_id}/versions/1",
         headers=auth(),
-        json={"configuration": config or CONFIG},
+        json={"expected_revision": 1, "configuration": config},
     )
-    assert result.status_code == 201, result.text
+    assert result.status_code == 200, result.text
     return result.json()
 
 
@@ -93,28 +102,24 @@ def test_agent_crud_and_persistence(studio, db_engine):
         == "test-agent"
     )
     assert (
-        studio.delete("/api/v1/agents/test-agent?expected_revision=1", headers=auth()).status_code
+        studio.delete(
+            "/api/v1/agents/test-agent?expected_revision=1", headers=auth("administrator")
+        ).status_code
         == 409
     )
     assert (
-        studio.delete("/api/v1/agents/test-agent?expected_revision=2", headers=auth()).status_code
-        == 409
-    )
-    restored = studio.patch(
-        "/api/v1/agents/test-agent",
-        headers=auth(),
-        json={"expected_revision": 2, "status": "draft"},
-    )
-    assert restored.status_code == 200
-    assert (
-        studio.delete("/api/v1/agents/test-agent?expected_revision=3", headers=auth()).status_code
+        studio.delete(
+            "/api/v1/agents/test-agent?expected_revision=2", headers=auth("administrator")
+        ).status_code
         == 204
     )
     assert studio.get("/api/v1/agents/test-agent", headers=auth()).status_code == 404
+    with Session(db_engine) as session:
+        assert session.get(Agent, "test-agent").deleted_at is not None
 
 
 @pytest.mark.parametrize("status", ["disabled", "deprecated"])
-def test_delete_rejects_non_draft_even_for_administrator(studio, db_engine, status):
+def test_admin_can_delete_without_snapshots_in_any_registry_state(studio, db_engine, status):
     new_agent(studio)
     result = studio.patch(
         "/api/v1/agents/test-agent",
@@ -125,31 +130,28 @@ def test_delete_rejects_non_draft_even_for_administrator(studio, db_engine, stat
     response = studio.delete(
         "/api/v1/agents/test-agent?expected_revision=2", headers=auth("administrator")
     )
-    assert response.status_code == 409
-    assert response.json()["detail"]["code"] == "DELETE_NOT_ALLOWED"
+    assert response.status_code == 204
     with Session(db_engine) as session:
-        assert session.get(Agent, "test-agent").status == status
-        assert not session.scalar(select(AuditEvent).where(AuditEvent.action == "agent.deleted"))
+        assert session.get(Agent, "test-agent").deleted_at is not None
+        assert session.scalar(select(AuditEvent).where(AuditEvent.action == "agent.deleted"))
 
 
 def test_delete_retains_editable_versions_and_linked_audit(studio, db_engine):
     new_agent(studio)
     version = new_version(studio)
-    response = studio.delete("/api/v1/agents/test-agent?expected_revision=1", headers=auth())
-    assert response.status_code == 409
-    assert response.json()["detail"]["code"] == "HISTORY_EXISTS"
-    assert studio.get("/api/v1/agents/test-agent/versions/1", headers=auth()).json() == version
-    new_agent(studio, "linked-audit-agent")
     with Session(db_engine) as session:
-        record(session, "demo-creator", "policy.reviewed", "linked-audit-agent")
+        record(session, "demo-creator", "policy.reviewed", "test-agent", 1)
         session.commit()
     response = studio.delete(
-        "/api/v1/agents/linked-audit-agent?expected_revision=1", headers=auth()
+        "/api/v1/agents/test-agent?expected_revision=1", headers=auth("administrator")
     )
-    assert response.status_code == 409
-    assert response.json()["detail"]["code"] == "HISTORY_EXISTS"
+    assert response.status_code == 204
     with Session(db_engine) as session:
-        assert session.get(Agent, "linked-audit-agent") is not None
+        saved = session.get(AgentVersion, ("test-agent", 1))
+        assert (
+            saved.status == "discarded"
+            and saved.configuration["instructions"] == version["configuration"]["instructions"]
+        )
         assert session.scalar(select(AuditEvent).where(AuditEvent.action == "policy.reviewed"))
 
 
@@ -159,15 +161,22 @@ def test_delete_missing_auth_and_revision_do_not_mutate(studio, db_engine):
     for headers in [{}, auth("inactive")]:
         assert studio.delete(path + "?expected_revision=1", headers=headers).status_code == 401
     for query in ["", "?expected_revision=0", "?expected_revision=-1"]:
-        assert studio.delete(path + query, headers=auth()).status_code == 422
-    assert studio.delete(path + "?expected_revision=2", headers=auth()).status_code == 409
+        assert studio.delete(path + query, headers=auth("administrator")).status_code == 422
+    assert (
+        studio.delete(path + "?expected_revision=2", headers=auth("administrator")).status_code
+        == 409
+    )
+    assert studio.delete(path + "?expected_revision=1", headers=auth()).status_code == 403
     assert (
         studio.delete(path + "?expected_revision=1", headers=auth("administrator")).status_code
         == 204
     )
-    assert studio.delete(path + "?expected_revision=1", headers=auth()).status_code == 404
+    assert (
+        studio.delete(path + "?expected_revision=1", headers=auth("administrator")).status_code
+        == 404
+    )
     with Session(db_engine) as session:
-        assert session.get(Agent, "test-agent") is None
+        assert session.get(Agent, "test-agent").deleted_at is not None
         events = session.scalars(
             select(AuditEvent).where(AuditEvent.action == "agent.deleted")
         ).all()
@@ -358,15 +367,19 @@ def test_catalog_creation_validation_uniqueness_and_deletion(studio):
 )
 def test_unapproved_or_unauthorized_configuration_is_atomic(studio, db_engine, override, expected):
     new_agent(studio)
-    result = studio.post(
-        "/api/v1/agents/test-agent/versions",
+    result = studio.put(
+        "/api/v1/agents/test-agent/versions/1",
         headers=auth(),
-        json={"configuration": CONFIG | override},
+        json={"expected_revision": 1, "configuration": CONFIG | override},
     )
     assert result.status_code == expected, result.text
     with Session(db_engine) as session:
-        assert session.scalar(select(func.count()).select_from(AgentVersion)) == 0
-        assert session.get(Agent, "test-agent").next_version == 1
+        assert session.scalar(select(func.count()).select_from(AgentVersion)) == 1
+        assert session.get(Agent, "test-agent").next_version == 2
+        assert (
+            session.get(AgentVersion, ("test-agent", 1)).configuration["instructions"]
+            == CONFIG["instructions"]
+        )
 
 
 def test_draft_edit_snapshot_clone_and_persistence(studio, db_engine):
@@ -408,7 +421,9 @@ def test_draft_edit_snapshot_clone_and_persistence(studio, db_engine):
         == 409
     )
     assert (
-        studio.delete("/api/v1/agents/test-agent?expected_revision=1", headers=auth()).status_code
+        studio.delete(
+            "/api/v1/agents/test-agent?expected_revision=1", headers=auth("administrator")
+        ).status_code
         == 409
     )
     clone = studio.post(
@@ -463,13 +478,27 @@ def test_revocation_blocks_edits_snapshots_and_clones(studio):
             headers=auth(),
             json={"source_version": 1, "expected_source_revision": frozen["revision"]},
         ).status_code
-        == 422
+        == 409
     )
     assert (
         studio.put(
             "/api/v1/agents/test-agent/versions/2",
             headers=auth(),
             json={"expected_revision": 1, "configuration": CONFIG},
+        ).status_code
+        == 422
+    )
+    assert (
+        studio.delete(
+            "/api/v1/agents/test-agent/versions/2?expected_revision=1", headers=auth()
+        ).status_code
+        == 204
+    )
+    assert (
+        studio.post(
+            "/api/v1/agents/test-agent/versions",
+            headers=auth(),
+            json={"source_version": 1, "expected_source_revision": frozen["revision"]},
         ).status_code
         == 422
     )
@@ -499,10 +528,10 @@ def test_admin_cannot_bypass_owner_grants(studio):
     )
     assert result.status_code == 201
     assert (
-        studio.post(
-            "/api/v1/agents/limited-agent/versions",
+        studio.put(
+            "/api/v1/agents/limited-agent/versions/1",
             headers=auth("administrator"),
-            json={"configuration": CONFIG},
+            json={"expected_revision": 1, "configuration": CONFIG},
         ).status_code
         == 403
     )
@@ -654,10 +683,13 @@ def test_model_revocation_and_missing_tool_calling_are_rejected(studio):
         studio.post("/api/v1/models", headers=auth("administrator"), json=model).status_code == 201
     )
     assert (
-        studio.post(
-            "/api/v1/agents/test-agent/versions",
+        studio.put(
+            "/api/v1/agents/test-agent/versions/1",
             headers=auth(),
-            json={"configuration": CONFIG | {"model": {"model_id": "chat-only-v1"}}},
+            json={
+                "expected_revision": 1,
+                "configuration": CONFIG | {"model": {"model_id": "chat-only-v1"}},
+            },
         ).status_code
         == 422
     )
@@ -711,15 +743,21 @@ def test_database_constraints_and_relation_consistency(studio, db_engine, statem
         connection.execute(text(statement))
 
 
-def test_concurrent_versions_have_unique_monotonic_numbers(studio):
+def test_concurrent_versions_have_one_active_draft(studio):
     new_agent(studio)
+    snapshot = freeze(studio)
 
     def add(_):
-        return new_version(studio)["number"]
+        return studio.post(
+            "/api/v1/agents/test-agent/versions",
+            headers=auth(),
+            json={"source_version": 1, "expected_source_revision": snapshot["revision"]},
+        )
 
     with ThreadPoolExecutor(max_workers=4) as workers:
-        numbers = list(workers.map(add, range(4)))
-    assert sorted(numbers) == [1, 2, 3, 4]
+        responses = list(workers.map(add, range(4)))
+    assert sorted(r.status_code for r in responses) == [201, 409, 409, 409]
+    assert [r.json()["number"] for r in responses if r.status_code == 201] == [2]
 
 
 def test_seed_is_idempotent_and_preserves_catalog_changes(studio, db_engine):

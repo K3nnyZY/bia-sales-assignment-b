@@ -123,11 +123,9 @@ def test_full_publication_runtime_audit(governed, db_engine):
 
 def clone(client, config=None):
     source = get(client, BASE)
-    data = (
-        {"configuration": config}
-        if config
-        else {"source_version": 1, "expected_source_revision": source["revision"]}
-    )
+    data = {"source_version": 1, "expected_source_revision": source["revision"]}
+    if config:
+        data["configuration"] = config
     version = post(client, "/agents/billing-assistant/versions", data, status=201)
     base = f"/agents/billing-assistant/versions/{version['number']}"
     frozen = post(client, base + "/snapshot", {"expected_revision": version["revision"]})

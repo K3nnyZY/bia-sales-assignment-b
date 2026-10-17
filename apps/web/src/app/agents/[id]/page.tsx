@@ -138,12 +138,16 @@ function ConfigurationForm({
   models,
   tools,
   refresh,
+  activeDraft,
+  hasEarlierSnapshot,
 }: {
   agent: Agent;
   version: AgentVersion | null;
   models: CatalogModel[];
   tools: CatalogTool[];
   refresh: () => void;
+  activeDraft: AgentVersion | null;
+  hasEarlierSnapshot: boolean;
 }) {
   const { api, user } = useStudio();
   const initial = version?.configuration;
@@ -176,6 +180,7 @@ function ConfigurationForm({
     (user?.role === "administrator" ||
       (user?.role === "creator" && user.id === agent.owner_id));
   const frozen = version?.status === "snapshot";
+  const discarded = version?.status === "discarded";
   const configuration: Configuration = {
     api_version: "bia.ai/v1",
     kind: "AgentConfiguration",
@@ -272,8 +277,9 @@ function ConfigurationForm({
           Evaluation Center. Crea una nueva versión para realizar cambios.
         </p>
       )}
+      {discarded && <p className="notice">Borrador descartado. Su contenido se conserva para auditoría y no puede editarse ni congelarse.</p>}
       <form onSubmit={save} onChange={() => setDirty(true)}>
-        <fieldset disabled={!canEdit || frozen || busy}>
+        <fieldset disabled={!canEdit || frozen || discarded || busy}>
           <label>
             Objetivo
             <textarea
@@ -466,7 +472,7 @@ function ConfigurationForm({
             Autenticación obligatoria · recursos del solicitante · sin
             escrituras financieras. Los permisos se derivan en el servidor.
           </p>
-          {canEdit && !frozen && (
+          {canEdit && !frozen && !discarded && (
             <button disabled={busy || !modelId}>
               {busy
                 ? "Guardando…"
@@ -479,7 +485,7 @@ function ConfigurationForm({
       </form>
       {canEdit && version && (
         <div className="actions">
-          {!frozen && (
+          {version.status === "draft" && (
             <button
               disabled={busy || dirty}
               onClick={() =>
@@ -495,7 +501,8 @@ function ConfigurationForm({
           )}
           <button
             className="secondary"
-            disabled={busy || dirty}
+            aria-describedby="new-version-reason"
+            disabled={busy || dirty || !frozen || Boolean(activeDraft)}
             onClick={() =>
               void mutate(`/agents/${agent.id}/versions`, "POST", {
                 source_version: version.number,
@@ -505,6 +512,16 @@ function ConfigurationForm({
           >
             Nueva versión desde esta
           </button>
+          {activeDraft ? (
+            <p className="hint" id="new-version-reason">Existe un borrador activo: v{activeDraft.number}. Debes congelarlo o descartarlo antes de crear una nueva versión.</p>
+          ) : !frozen && <p className="hint" id="new-version-reason">Selecciona un snapshot congelado como origen de la nueva versión.</p>}
+          {version.status === "draft" && hasEarlierSnapshot && (
+            <button className="danger" disabled={busy || dirty} onClick={() => {
+              if (window.confirm(`¿Descartar el borrador v${version.number} de ${agent.name}? Se conservará para auditoría y no se modificarán sus snapshots.`)) {
+                void mutate(`/agents/${agent.id}/versions/${version.number}?expected_revision=${version.revision}`, "DELETE", undefined);
+              }
+            }}>Descartar borrador</button>
+          )}
           {dirty && (
             <p className="hint">
               Guarda los cambios antes de crear un snapshot o una nueva versión.
@@ -548,18 +565,13 @@ function AgentDetail() {
     versions.data?.find((version) => version.number === selected) ||
     versions.data?.[0] ||
     null;
-  const editable =
-    user?.role === "administrator" ||
-    (user?.role === "creator" && user.id === agent.data?.owner_id);
+  const hasSnapshots = versions.data?.some((version) => version.status === "snapshot");
+  const activeDraft = versions.data?.find((version) => version.status === "draft") || null;
   const deletionReason = !versions.data
     ? "No se ha comprobado el historial. Espera a que cargue o reintenta la consulta."
-    : agent.data?.status !== "draft"
-      ? "Solo se pueden eliminar agentes cuyo registro esté en DRAFT."
-      : versions.data.length > 0
-        ? `Este agente tiene ${versions.data.length} versión(es) con historial que debe conservarse. DRAFT es el estado del registro, no indica que sus versiones sean eliminables. Puedes deshabilitarlo desde Identidad y estado.`
-        : "";
+    : hasSnapshots ? "Este agente tiene snapshots congelados y no puede eliminarse." : "";
   function refreshVersions() {
-    setSuccess("Versión guardada correctamente.");
+    setSuccess("Operación completada. Historial de versiones actualizado.");
     setSelected(null);
     versions.refresh();
   }
@@ -591,21 +603,21 @@ function AgentDetail() {
         <Link href="/agents">← Inventario de agentes</Link>
         <div className="panel-heading">
           <h1>{agent.data?.name || "Detalle del agente"}</h1>
-          {editable && agent.data && (
+          {user?.role === "administrator" && agent.data && versions.data && !hasSnapshots && (
             <button
               className="danger"
               disabled={busy || Boolean(deletionReason)}
               aria-describedby="agent-deletion-reason"
-              title={deletionReason || "Eliminar este borrador sin historial"}
+              title={deletionReason || "Eliminar este agente sin snapshots"}
               onClick={() => setConfirmDelete(true)}
             >
               Eliminar agente
             </button>
           )}
         </div>
-        {editable && agent.data && (
+        {user?.role === "administrator" && agent.data && (
           <p className="hint" id="agent-deletion-reason">
-            {deletionReason || "Puedes eliminar este borrador sin versiones. Se pedirá confirmación y el backend comprobará de nuevo tus permisos y el historial."}
+            {deletionReason || "Puedes eliminar este agente sin snapshots. Se retirará del inventario y se conservará su auditoría. El backend volverá a comprobar las dependencias."}
           </p>
         )}
         <Link href="/evaluations">Evaluaciones y publicación</Link>
@@ -659,6 +671,8 @@ function AgentDetail() {
               models={models.data}
               tools={tools.data}
               refresh={refreshVersions}
+              activeDraft={activeDraft}
+              hasEarlierSnapshot={Boolean(current && versions.data.some((version) => version.status === "snapshot" && version.number < current.number))}
             />
           ) : (
             <section className="panel">

@@ -30,10 +30,10 @@ test("configure, evaluate, independently approve, publish, execute and audit", a
   await page.getByRole("button", { name: "Crear agente", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/agents/${id}$`));
   await page
-    .getByLabel("Objetivo", { exact: true })
+    .getByRole("textbox", { name: "Objetivo", exact: true })
     .fill("Explicar facturas sintéticas autorizadas");
   await page
-    .getByLabel("Instrucciones", { exact: true })
+    .getByRole("textbox", { name: "Instrucciones", exact: true })
     .fill("Usar evidencia autorizada y cálculos Python.");
   await page.getByLabel("Workflow", { exact: true }).selectOption("billing");
   await page
@@ -44,7 +44,7 @@ test("configure, evaluate, independently approve, publish, execute and audit", a
   await page.getByLabel(/search_billing_knowledge · v1.0.0/).check();
   await page.getByLabel("Máximo de pasos", { exact: true }).fill("12");
   await page
-    .getByRole("button", { name: "Crear primera versión", exact: true })
+    .getByRole("button", { name: "Guardar borrador", exact: true })
     .click();
   await expect(
     page.getByRole("heading", { name: "Versión 1 · draft", exact: true }),
@@ -211,7 +211,7 @@ test("metadata history survives empty-agent deletion and remains scoped in Next.
   const agent = await edited.json();
   const deleted = await page.request.delete(
     `/api/studio/agents/${id}?expected_revision=${agent.revision}`,
-    { headers },
+    { headers: { Authorization: `Bearer ${process.env.DEMO_ADMIN_TOKEN}` } },
   );
   expect(deleted.status()).toBe(204);
   await page.getByRole("link", { name: "Trazas", exact: true }).click();
@@ -227,7 +227,7 @@ test("metadata history survives empty-agent deletion and remains scoped in Next.
     { headers },
   );
   expect(
-    (await scoped.json()).map((e: { action: string }) => e.action).sort(),
+    (await scoped.json()).map((e: { action: string }) => e.action).filter((action: string) => action.startsWith("agent.")).sort(),
   ).toEqual(["agent.created", "agent.deleted", "agent.updated"]);
   await login(page, "VIEWER", "/traces");
   await expect(

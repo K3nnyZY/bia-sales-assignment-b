@@ -67,7 +67,7 @@ def test_valid_declarative_configuration():
     [
         {},
         {"source_version": 1},
-        {"configuration": CONFIG, "source_version": 1, "expected_source_revision": 1},
+        {"configuration": CONFIG, "source_version": 1},
     ],
 )
 def test_version_creation_requires_unambiguous_source(value):

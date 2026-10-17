@@ -143,11 +143,12 @@ PostgreSQL; enviar `X-Role` o `X-User-Id` no concede acceso.
 
 1. Crea un agente con ID, nombre, departamento y descripción.
 2. Configura objetivo e instrucciones, modelo aprobado, herramientas y límites.
-3. Guarda la primera versión; puedes editarla con **Guardar borrador**.
+3. El alta crea un borrador inicial editable; guarda sus cambios con **Guardar borrador**.
+   Debe existir al menos un modelo de chat aprobado.
 4. Con los cambios guardados, usa **Crear snapshot**. El formulario pasa a solo
    lectura y muestra el hash y el contenido efectivo conservado.
-5. Usa **Nueva versión desde esta** para derivar otro borrador. Selecciona las
-   versiones en el historial y comprueba que la anterior permanece intacta.
+5. Usa **Nueva versión desde esta** desde un snapshot y sin otro borrador activo.
+   Un borrador posterior puede descartarse sin borrar snapshots ni auditoría.
 6. Recarga, identifícate de nuevo y comprueba la persistencia.
 
 Las páginas `/models` y `/tools` muestran catálogos reales. El administrador
@@ -336,9 +337,10 @@ demostración, nunca del manifiesto del agente. `/docs` documenta los contratos.
 | Crear agente | `POST /api/v1/agents` | Creator/administrator; owner actual salvo admin |
 | Ver agente | `GET /api/v1/agents/{id}` | Identidad activa |
 | Editar metadatos/estado | `PATCH /api/v1/agents/{id}` | Propietario creator o administrator |
-| Eliminar sin historial | `DELETE /api/v1/agents/{id}?expected_revision=1` | Propietario creator o administrator |
+| Eliminar sin snapshots (retiro lógico) | `DELETE /api/v1/agents/{id}?expected_revision=1` | Solo administrator, cualquier propietario |
 | Listar/consultar versiones | `GET /api/v1/agents/{id}/versions[/{number}]` | Identidad activa |
-| Crear o clonar versión | `POST /api/v1/agents/{id}/versions` | Propietario creator o administrator |
+| Derivar versión desde snapshot (sin otro borrador) | `POST /api/v1/agents/{id}/versions` | Propietario creator o administrator |
+| Descartar borrador posterior | `DELETE /api/v1/agents/{id}/versions/{number}?expected_revision=N` | Propietario creator o administrator; requiere snapshot previo |
 | Editar borrador | `PUT /api/v1/agents/{id}/versions/{number}` | Propietario creator o administrator |
 | Congelar configuración | `POST /api/v1/agents/{id}/versions/{number}/snapshot` | Propietario creator o administrator |
 | Catálogos aprobados | `GET /api/v1/models`, `GET /api/v1/tools` y detalle por ID | Identidad activa |
@@ -435,9 +437,11 @@ crear un snapshot requiere `{"expected_revision":1}`; clonar usa
 devuelve 409 y exige recargar; no sobrescribe silenciosamente cambios ajenos.
 
 El agente admite `draft`, `disabled` y `deprecated`. Solo `draft` permite cambios
-de configuración; `deprecated` es terminal. Las versiones admiten `draft` y
-`snapshot`. Un snapshot **no equivale a publicar**. Un agente con versiones no
-se elimina: se deshabilita para conservar el historial. La transferencia de
+de configuración; `deprecated` es terminal. Las versiones admiten `draft`,
+`snapshot` y `discarded`. Un snapshot **no equivale a publicar**. Solo puede haber
+un borrador activo y nuevas versiones requieren un snapshot de origen. Solo Admin
+puede retirar un agente sin snapshots, conservando borradores descartados y auditoría.
+La transferencia de
 propiedad es administrativa, revalida los borradores y se bloquea si hay snapshots.
 
 ### Ayuda, evaluaciones y eliminación segura
@@ -461,16 +465,17 @@ backend, o introducir un contrato manual. Las plantillas se crean pendientes de
 aprobación. Un registro existente, incluso revocado, no se sobrescribe ni reactiva.
 Registrar herramientas no carga facturas, documentos ni concede permisos.
 
-El botón **Eliminar agente** aparece arriba en el detalle para el propietario
-creator o administrador. Solo se habilita cuando el registro está en `draft` y
-no tiene versiones; en otros casos explica por qué está bloqueado. DRAFT en el
-registro no es el estado de publicación de sus versiones. Exige confirmación con
-el nombre del agente. `DELETE /api/v1/agents/{id}?expected_revision=N` revalida
-autorización, revisión, estado e historial bajo bloqueo en el servidor. Se conserva
-la política existente: **también las versiones editables impiden borrar el agente**,
-pues tienen historial de auditoría que debe preservarse. Los agentes con historial
-pueden deshabilitarse desde Identidad y estado. La eliminación conserva los eventos
-de metadatos y registra `agent.deleted`. No requiere una migración nueva.
+El botón **Eliminar agente** aparece únicamente para Admin y cuando el historial
+cargado no contiene snapshots. Exige confirmación con el nombre y revalida permisos,
+revisión e historial bajo bloqueo. La eliminación retira el agente del inventario,
+descarta su borrador y conserva todas las filas y la auditoría; no permite reutilizar
+el ID ni restaurarlo. Un agente con snapshots no puede eliminarse. El propietario
+Creator o Admin puede **Descartar borrador** posterior y derivar otro desde un snapshot.
+Las reglas de evaluación, aprobación y publicación se mantienen.
+
+La migración `0007_agent_lifecycle` conserva snapshots, hashes e historial y marca
+los borradores históricos supersedidos como `discarded`, manteniendo solo el último
+borrador posterior a los snapshots. Ver [ciclo de vida y verificación](docs/agent-lifecycle.md).
 
 Ver [detalles y verificación de UX](docs/ux-context-evaluations-deletion.md).
 La mejora posterior de acciones está documentada en

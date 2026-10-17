@@ -1,5 +1,10 @@
 # Ayuda contextual, evaluaciones y eliminación segura
 
+> Informe de la implementación anterior. La política de eliminación y el alta de
+> borradores quedan actualizadas por [Ciclo de vida de agentes](agent-lifecycle.md).
+> Solo Admin elimina; un borrador editable no bloquea el retiro si no hay snapshots.
+
+
 Fecha: 2026-10-16. Se conserva el monolito, CSS, proxy autenticado y contratos de
 gobernanza existentes. No se ejecutaron operaciones en Railway.
 

@@ -1,5 +1,6 @@
 import hashlib
 import json
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from fastapi import HTTPException
@@ -29,7 +30,7 @@ def require_creator(user: User) -> None:
 
 
 def get_agent(session: Session, agent_id: str, user: User, *, edit: bool = False) -> Agent:
-    query = select(Agent).where(Agent.id == agent_id)
+    query = select(Agent).where(Agent.id == agent_id, Agent.deleted_at.is_(None))
     agent = session.scalar(query.with_for_update() if edit else query)
     if agent is None:
         fail(404, "NOT_FOUND", "Agent not found")
@@ -74,25 +75,29 @@ def create_agent(session: Session, data: AgentCreate, user: User) -> Agent:
     )
     session.add(agent)
     session.flush()
+    if data.configuration is not None:
+        create_version(session, agent, VersionCreate(configuration=data.configuration), user)
+        return agent
+    query = select(Model).where(Model.status == "approved")
     if data.model_profile is not None:
-        model = session.scalar(
-            select(Model)
-            .where(Model.profile == data.model_profile, Model.status == "approved")
-            .with_for_update(read=True)
+        query = query.where(Model.profile == data.model_profile)
+    else:
+        query = query.where(Model.capabilities.contains(["chat"])).order_by(
+            (Model.profile == "balanced").desc(), Model.id
         )
-        if model is None:
-            fail(422, "MODEL_NOT_APPROVED", "Select an approved model profile")
-        tool_ids = resolve_initial_tools(session, data.tools)
-        configuration = AgentConfiguration(
-            objective=data.description or data.name,
-            instructions="Follow the declared objective using only approved capabilities "
-            "and evidence authorized for the caller.",
-            model=ModelSelection(
-                model_id=model.id, max_output_tokens=min(1000, model.max_output_tokens)
-            ),
-            tool_ids=tool_ids,
-        )
-        create_version(session, agent, VersionCreate(configuration=configuration), user)
+    model = session.scalar(query.limit(1).with_for_update(read=True))
+    if model is None:
+        fail(422, "MODEL_NOT_APPROVED", "An approved model is required for the initial draft")
+    configuration = AgentConfiguration(
+        objective=data.description or data.name,
+        instructions="Follow the declared objective using only approved capabilities "
+        "and evidence authorized for the caller.",
+        model=ModelSelection(
+            model_id=model.id, max_output_tokens=min(1000, model.max_output_tokens)
+        ),
+        tool_ids=resolve_initial_tools(session, data.tools),
+    )
+    create_version(session, agent, VersionCreate(configuration=configuration), user)
     return agent
 
 
@@ -218,13 +223,36 @@ def store_configuration(
 
 
 def create_version(session: Session, agent: Agent, data: VersionCreate, user: User) -> AgentVersion:
+    session.refresh(agent, with_for_update=True)
     if agent.status != "draft":
         fail(409, "AGENT_NOT_EDITABLE", "Only draft agents accept configuration changes")
+    if agent.deleted_at is not None:
+        fail(404, "NOT_FOUND", "Agent not found")
+    if (
+        session.scalar(
+            select(AgentVersion.number)
+            .where(AgentVersion.agent_id == agent.id, AgentVersion.status == "draft")
+            .limit(1)
+        )
+        is not None
+    ):
+        fail(
+            409,
+            "ACTIVE_DRAFT_EXISTS",
+            "Freeze or discard the active draft before creating a version",
+        )
+    history = session.scalar(
+        select(AgentVersion.number).where(AgentVersion.agent_id == agent.id).limit(1)
+    )
+    if history is not None and data.source_version is None:
+        fail(409, "SOURCE_SNAPSHOT_REQUIRED", "New versions must derive from an existing snapshot")
     config = data.configuration
     if data.source_version is not None:
         source = get_version(session, agent.id, data.source_version)
         check_revision(source.revision, data.expected_source_revision)
-        config = AgentConfiguration.model_validate(source.configuration)
+        if source.status != "snapshot":
+            fail(409, "SOURCE_SNAPSHOT_REQUIRED", "The source must be a frozen snapshot")
+        config = config or AgentConfiguration.model_validate(source.configuration)
     version = AgentVersion(
         agent_id=agent.id,
         number=agent.next_version,
@@ -234,6 +262,30 @@ def create_version(session: Session, agent: Agent, data: VersionCreate, user: Us
     agent.next_version += 1
     store_configuration(session, version, config, owner_for(session, agent.owner_id))
     return version
+
+
+def discard_version(
+    session: Session, agent: Agent, version: AgentVersion, reason: str = "editor_discard"
+) -> None:
+    if reason != "agent_deleted" and not session.scalar(
+        select(AgentVersion.number)
+        .where(
+            AgentVersion.agent_id == agent.id,
+            AgentVersion.status == "snapshot",
+            AgentVersion.number < version.number,
+        )
+        .limit(1)
+    ):
+        fail(
+            409,
+            "INITIAL_DRAFT_REQUIRED",
+            "Freeze the initial draft or ask an administrator to delete the agent",
+        )
+    version.status = "discarded"
+    version.discarded_at = datetime.now(UTC)
+    version.discard_reason = reason
+    version.revision += 1
+    session.flush()
 
 
 def editable_version(

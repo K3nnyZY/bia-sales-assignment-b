@@ -36,14 +36,14 @@ test("create, edit, snapshot, clone and reload a persisted agent", async ({
     .selectOption("synthetic-balanced-v1");
   await page.getByLabel(/get_customer_invoice · v1.0.0/).check();
   await page
-    .getByRole("button", { name: "Crear primera versión", exact: true })
+    .getByRole("button", { name: "Guardar borrador", exact: true })
     .click();
   await expect(
     page.getByRole("heading", { name: "Versión 1 · draft", exact: true }),
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Eliminar agente", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Eliminar agente", exact: true })).toBeDisabled();
-  await expect(page.locator("#agent-deletion-reason")).toContainText("historial que debe conservarse");
+  await expect(page.getByRole("button", { name: "Eliminar agente", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Nueva versión desde esta", exact: true })).toBeDisabled();
+  await expect(page.locator("#new-version-reason")).toContainText("borrador");
   await page
     .getByRole("textbox", { name: "Instrucciones", exact: true })
     .fill("Updated approved instructions.");
@@ -90,18 +90,30 @@ test("create, edit, snapshot, clone and reload a persisted agent", async ({
   await expect(
     page.getByRole("textbox", { name: "Objetivo", exact: true }),
   ).toHaveValue("Explain synthetic authorized invoices");
+  await expect(page.getByRole("button", { name: "Nueva versión desde esta", exact: true })).toBeDisabled();
+  await page.getByRole("button", { name: "v2 · draft", exact: true }).click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Descartar borrador", exact: true }).click();
+  await expect(page.getByRole("button", { name: "v2 · discarded", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "v1 · snapshot", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Nueva versión desde esta", exact: true })).toBeEnabled();
+  await page.getByRole("button", { name: "Nueva versión desde esta", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Versión 3 · draft", exact: true })).toBeVisible();
   await login(page, creator, `/agents/${id}`); // Reload removes the in-memory credential.
   await expect(
     page.getByRole("button", { name: "v1 · snapshot", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "v2 · draft", exact: true }),
+    page.getByRole("button", { name: "v2 · discarded", exact: true }),
   ).toBeVisible();
   const persisted = await page.request.get(
     `/api/studio/agents/${id}/versions/1`,
     { headers: { Authorization: `Bearer ${creator}` } },
   );
   expect(await persisted.json()).toEqual(snapshot);
+  await login(page, admin, `/agents/${id}`);
+  await expect(page.getByRole("button", { name: "Eliminar agente", exact: true })).toHaveCount(0);
+  await expect(page.locator("#agent-deletion-reason")).toContainText("snapshots congelados");
 });
 
 test("catalog management requires administrator identity", async ({ page }) => {

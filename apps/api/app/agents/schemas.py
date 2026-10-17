@@ -70,6 +70,7 @@ class AgentCreate(Contract):
         default=None, validation_alias=AliasChoices("owner_id", "owner")
     )
     model_profile: Profile | None = None
+    configuration: AgentConfiguration | None = None
     tools: Annotated[
         list[Annotated[str, Field(pattern=r"^[a-z][a-z0-9_-]{2,119}$")]],
         Field(max_length=20),
@@ -77,6 +78,8 @@ class AgentCreate(Contract):
 
     @model_validator(mode="after")
     def initial_configuration_selection(self):
+        if self.configuration is not None and (self.model_profile is not None or self.tools):
+            raise ValueError("Use configuration or model_profile/tools, not both")
         if self.tools and self.model_profile is None:
             raise ValueError("tools require model_profile for the initial configuration")
         if len(self.tools) != len(set(self.tools)):
@@ -122,8 +125,8 @@ class VersionCreate(Contract):
 
     @model_validator(mode="after")
     def choose_source(self):
-        if (self.configuration is None) == (self.source_version is None):
-            raise ValueError("Provide either configuration or source_version")
+        if self.configuration is None and self.source_version is None:
+            raise ValueError("Provide configuration or source_version")
         if (self.source_version is None) != (self.expected_source_revision is None):
             raise ValueError("Cloning requires the source revision")
         return self
@@ -141,7 +144,7 @@ class VersionRead(Contract):
     agent_id: str
     number: int
     source_version: int | None
-    status: Literal["draft", "snapshot"]
+    status: Literal["draft", "snapshot", "discarded"]
     revision: int
     model_id: str
     configuration: AgentConfiguration
@@ -149,3 +152,5 @@ class VersionRead(Contract):
     config_hash: str | None
     created_by: str
     created_at: datetime
+    discarded_at: datetime | None
+    discard_reason: str | None

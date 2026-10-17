@@ -31,6 +31,16 @@ tests create an isolated Knowledge collection through the UI, preserving previou
 documents and avoiding assumptions about top-k ranking in a shared corpus.
 This local integration does not add production identity or a public deployment.
 
+**Agent lifecycle update (2026-10-16):** API registration atomically creates its
+initial editable AgentVersion using an approved model. Draft and snapshot are
+states of the same existing row; `discarded` retains abandoned draft history.
+Only one draft is active per agent. Subsequent versions require a frozen source;
+parent-row locks and a partial unique index serialize clone/freeze/discard/delete.
+Only administrator may retire an agent with no snapshots, regardless of owner.
+Logical deletion reserves its ID and preserves all audit/version relations.
+Governance and publication still operate exclusively on immutable snapshots.
+See [lifecycle contract and migration](agent-lifecycle.md).
+
 **Deployment preparation (2026-10-16):** an optional private access-token mode
 now authenticates operator-issued 256-bit credentials through SHA-256 hashes,
 expiry and revocation in PostgreSQL. Legacy demo tokens remain development-only

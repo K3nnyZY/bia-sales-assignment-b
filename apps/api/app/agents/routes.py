@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Query, Response
@@ -17,8 +18,7 @@ from app.agents.schemas import (
 )
 from app.db.session import DatabaseSession
 from app.governance.audit import record
-from app.governance.models import AuditEvent
-from app.identity.auth import CurrentUser
+from app.identity.auth import CurrentUser, require_admin
 
 router = APIRouter(prefix="/api/v1/agents", tags=["agents"])
 
@@ -33,7 +33,9 @@ def agents(
     limit: Annotated[int, Query(ge=1, le=100)] = 100,
     offset: Annotated[int, Query(ge=0)] = 0,
 ):
-    query = select(Agent).order_by(Agent.created_at.desc(), Agent.id)
+    query = (
+        select(Agent).where(Agent.deleted_at.is_(None)).order_by(Agent.created_at.desc(), Agent.id)
+    )
     if q:
         query = query.where(Agent.name.icontains(q, autoescape=True))
     if status:
@@ -47,6 +49,7 @@ def agents(
 def add_agent(data: AgentCreate, response: Response, session: DatabaseSession, user: CurrentUser):
     item = service.create_agent(session, data, user)
     record(session, user.id, "agent.created", resource_id=item.id, owner_id=item.owner_id)
+    record(session, user.id, "version.created", item.id, 1, initial=True)
     session.commit()
     response.headers["Location"] = f"/api/v1/agents/{item.id}"
     return item
@@ -81,25 +84,28 @@ def delete_agent(
     user: CurrentUser,
     expected_revision: Annotated[int, Query(ge=1)],
 ):
+    require_admin(user)
     item = service.get_agent(session, agent_id, user, edit=True)
     service.check_revision(item.revision, expected_revision)
-    if item.status != "draft":
-        service.fail(409, "DELETE_NOT_ALLOWED", "Only draft agents without history may be deleted")
     if session.scalar(
-        select(AgentVersion.number).where(AgentVersion.agent_id == agent_id).limit(1)
+        select(AgentVersion.number)
+        .where(AgentVersion.agent_id == agent_id, AgentVersion.status == "snapshot")
+        .limit(1)
     ):
-        service.fail(
-            409, "HISTORY_EXISTS", "Agents with version history must be disabled, not deleted"
+        service.fail(409, "HISTORY_EXISTS", "Agents with frozen snapshots cannot be deleted")
+    item.deleted_at, item.status = datetime.now(UTC), "deprecated"
+    item.revision += 1
+    session.flush()
+    for version in session.scalars(
+        select(AgentVersion).where(
+            AgentVersion.agent_id == agent_id, AgentVersion.status == "draft"
         )
-    # Runs, approvals, publications and grants require a version (RESTRICT FKs).
-    # Metadata events use detached resource_id references and survive deletion;
-    # a directly linked event is retained and must also prevent deletion.
-    if session.scalar(select(AuditEvent.id).where(AuditEvent.agent_id == agent_id).limit(1)):
-        service.fail(
-            409, "HISTORY_EXISTS", "Linked audit history must be preserved; disable this agent"
+    ).all():
+        service.discard_version(session, item, version, "agent_deleted")
+        record(
+            session, user.id, "version.discarded", agent_id, version.number, reason="agent_deleted"
         )
     record(session, user.id, "agent.deleted", resource_id=item.id, owner_id=item.owner_id)
-    session.delete(item)
     session.commit()
     return Response(status_code=204)
 
@@ -134,6 +140,22 @@ def add_version(agent_id: str, data: VersionCreate, session: DatabaseSession, us
 def version_detail(agent_id: str, number: int, session: DatabaseSession, user: CurrentUser):
     service.get_agent(session, agent_id, user)
     return service.get_version(session, agent_id, number)
+
+
+@router.delete("/{agent_id}/versions/{number}", status_code=204)
+def discard_draft(
+    agent_id: str,
+    number: int,
+    session: DatabaseSession,
+    user: CurrentUser,
+    expected_revision: Annotated[int, Query(ge=1)],
+):
+    agent = service.get_agent(session, agent_id, user, edit=True)
+    version = service.editable_version(session, agent, number, expected_revision)
+    service.discard_version(session, agent, version)
+    record(session, user.id, "version.discarded", agent_id, number, reason="editor_discard")
+    session.commit()
+    return Response(status_code=204)
 
 
 @router.put("/{agent_id}/versions/{number}", response_model=VersionRead)

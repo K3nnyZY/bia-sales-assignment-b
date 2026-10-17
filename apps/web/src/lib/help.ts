@@ -14,6 +14,9 @@ export const helpCatalog = {
 export type HelpTerm = keyof typeof helpCatalog;
 
 export const errorGuidance: Record<string, string> = {
+  ACTIVE_DRAFT_EXISTS: "Congela o descarta el borrador activo antes de crear otra versión.",
+  SOURCE_SNAPSHOT_REQUIRED: "Selecciona un snapshot congelado como origen de la nueva versión.",
+  INITIAL_DRAFT_REQUIRED: "El borrador inicial debe congelarse. Si quieres eliminar el agente, solicita la acción a un administrador.",
   UNAUTHENTICATED: "Inicia sesión con un token vigente. Si no tienes acceso, solicita una credencial al administrador.",
   STALE_REVISION: "El recurso cambió. Recarga los datos antes de volver a guardar o eliminar.",
   DELETE_NOT_ALLOWED: "Solo se pueden eliminar agentes en borrador sin historial. Conserva este agente; puedes deshabilitarlo desde Identidad y estado.",

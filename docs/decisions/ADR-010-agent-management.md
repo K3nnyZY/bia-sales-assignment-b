@@ -80,14 +80,28 @@ No se implementan estados TESTING/PENDING_APPROVAL/PUBLISHED, evaluación,
 aprobación, LangGraph, RAG, ejecución, llamadas a proveedores ni acceso a
 facturas reales. Los snapshots no deben utilizarse como permiso para ejecutar.
 
-## Aclaración posterior — eliminación de borradores
+## Actualización — ciclo de vida y eliminación administrativa
 
-El DELETE existente se restringe a agentes lógicos `draft`, con revisión actual
-y sin ninguna versión ni evento de auditoría directamente vinculado. Mantiene
-el bloqueo por agente usado al crear versiones y las FKs RESTRICT como defensa
-de integridad. Las versiones editables también tienen historial y se conservan.
-La publicación no cambia necesariamente `Agent.status`; el historial de versiones
-impide eliminar incluso un agente publicado cuyo registro lógico siga en draft.
-Los eventos desacoplados de metadatos sobreviven y la eliminación se audita.
-El frontend confirma el nombre, explica la irreversibilidad y recarga los datos
-tras conflictos. No se añade un borrado en cascada ni se cambia la base de datos.
+La política anterior que exigía ausencia de toda versión queda sustituida por:
+solo Admin puede eliminar un agente y únicamente si no tiene snapshots. Se usa
+retiro lógico (`deleted_at`, estado deprecated), se descarta el borrador y se
+conservan versiones y auditoría con sus FKs RESTRICT. No hay borrado en cascada,
+restauración ni reutilización del identificador.
+
+El alta crea siempre su borrador inicial en la misma transacción. El contrato
+anterior de solo metadatos sigue aceptándose y selecciona un modelo de chat aprobado,
+preferentemente balanced; sin modelo aprobado el alta falla atómicamente. Puede
+indicarse configuración completa o el perfil/herramientas del contrato anterior.
+
+AgentVersion continúa representando tanto borrador como snapshot. Se añade el
+estado terminal discarded para preservar el contenido de borradores abandonados.
+Un índice único parcial impide más de un draft. Solo se deriva una nueva versión
+desde un snapshot cuando no hay draft. El borrador inicial debe congelarse o el
+Admin debe retirar el agente; un borrador posterior puede descartarse por su
+propietario Creator o Admin, sin tocar los snapshots. Todas las mutaciones toman
+el bloqueo de la fila Agent y validan revisiones. La base refuerza las transiciones.
+
+La migración 0007 marca borradores históricos supersedidos con razón explícita
+legacy_superseded_draft, conservando contenidos, relaciones, snapshots y hashes.
+No atribuye una acción humana inventada. El workflow de evaluación/aprobación/
+publicación no se modifica. Ver [contrato y pruebas](../agent-lifecycle.md).

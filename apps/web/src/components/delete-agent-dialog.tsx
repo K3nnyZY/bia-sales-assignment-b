@@ -32,8 +32,9 @@ export function DeleteAgentDialog({
       <h2 id="delete-agent-title">Eliminar agente</h2>
       <p id="delete-agent-warning">
         Vas a eliminar <strong>{name}</strong>. Esta acción es irreversible.
-        El backend volverá a verificar el estado, tus permisos y la ausencia
-        de historial protegido.
+        Se retirará del inventario, conservando la auditoría y los borradores
+        descartados. El backend comprobará que eres administrador y que no
+        existe ningún snapshot congelado.
       </p>
       <div className="actions">
         <button className="secondary" disabled={busy} onClick={cancel} autoFocus>

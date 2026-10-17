@@ -47,7 +47,7 @@ def events(client, aid=None, role="creator"):
         "/api/v1/audit-events", headers=headers(role), params={"agent_id": aid} if aid else {}
     )
     assert response.status_code == 200, response.text
-    return response.json()
+    return [event for event in response.json() if event["action"].startswith("agent.")]
 
 
 def edit(client, agent, **changes):
@@ -95,21 +95,37 @@ def test_metadata_does_not_expose_other_owners_or_catalog_collisions(history, db
     assert {e["action"] for e in events(history, own["id"], "auditor")} == {"agent.created"}
 
 
-def test_deleted_history_survives_and_reused_id_does_not_leak_to_new_owner(history, db_engine):
+def test_deleted_history_survives_and_identifier_cannot_be_reused(history, db_engine):
     agent = create(history, role="administrator")
-    agent = edit(history, agent, description="Before deleting an empty agent")
+    agent = edit(history, agent, description="Before deleting an agent without snapshots")
     delete(history, agent)
     before = events(history, agent["id"])
     assert {e["action"] for e in before} == {"agent.created", "agent.updated", "agent.deleted"}
     with Session(db_engine) as session:
-        assert session.get(Agent, agent["id"]) is None
+        assert session.get(Agent, agent["id"]).deleted_at is not None
         assert all(session.get(AuditEvent, e["id"]).agent_id is None for e in before)
-    create(history, agent["id"], "outsider", "demo-outsider")
-    new_owner = events(history, agent["id"], "outsider")
-    assert len(new_owner) == 1 and new_owner[0]["action"] == "agent.created"
-    assert not {e["id"] for e in before} & {e["id"] for e in new_owner}
+    response = history.post(
+        "/api/v1/agents",
+        headers=headers("outsider"),
+        json={"id": agent["id"], "name": "Reserved", "department": "Test"},
+    )
+    assert response.status_code == 409
+    assert events(history, agent["id"], "outsider") == []
     assert {e["id"] for e in events(history, agent["id"])} == {e["id"] for e in before}
-    assert len(events(history, agent["id"], "auditor")) == 4
+    assert len(events(history, agent["id"], "auditor")) == 3
+
+
+def test_legacy_deleted_id_reuse_does_not_leak_old_events(history, db_engine):
+    with Session(db_engine) as session:
+        record(session, "demo-administrator", "agent.updated", resource_id="legacy-deleted-agent")
+        session.commit()
+        legacy_id = session.scalar(
+            select(AuditEvent.id).where(AuditEvent.action == "agent.updated")
+        )
+    assert events(history, "legacy-deleted-agent") == []
+    create(history, "legacy-deleted-agent", "outsider", "demo-outsider")
+    assert legacy_id not in {e["id"] for e in events(history, "legacy-deleted-agent", "outsider")}
+    assert legacy_id in {e["id"] for e in events(history, "legacy-deleted-agent", "auditor")}
 
 
 def test_legacy_records_are_resolved_without_rewriting_or_guessing_deleted_ownership(
@@ -128,9 +144,8 @@ def test_legacy_records_are_resolved_without_rewriting_or_guessing_deleted_owner
         persisted = session.get(AuditEvent, legacy_id)
         assert (persisted.details, persisted.agent_id, persisted.created_at) == original
     delete(history, agent)
-    assert legacy_id not in {e["id"] for e in events(history, agent["id"])}
+    assert legacy_id in {e["id"] for e in events(history, agent["id"])}
     assert legacy_id in {e["id"] for e in events(history, agent["id"], "auditor")}
-    create(history, agent["id"], "outsider", "demo-outsider")
     assert legacy_id not in {e["id"] for e in events(history, agent["id"], "outsider")}
 
 

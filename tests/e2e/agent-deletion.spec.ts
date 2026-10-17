@@ -2,9 +2,9 @@ import { expect, test } from "@playwright/test";
 
 test("draft deletion confirms, survives a stale revision, and refreshes the registry", async ({ page }) => {
   const id = `e2e-delete-${Date.now()}`;
-  const headers = { Authorization: `Bearer ${process.env.DEMO_CREATOR_TOKEN}` };
+  const headers = { Authorization: `Bearer ${process.env.DEMO_ADMIN_TOKEN}` };
   await page.goto("/agents");
-  await page.getByLabel("Token de acceso").fill(process.env.DEMO_CREATOR_TOKEN!);
+  await page.getByLabel("Token de acceso").fill(process.env.DEMO_ADMIN_TOKEN!);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await page.getByLabel("Identificador", { exact: true }).fill(id);
   await page.getByLabel("Nombre", { exact: true }).fill("Borrador para eliminar");
@@ -26,7 +26,7 @@ test("draft deletion confirms, survives a stale revision, and refreshes the regi
   await expect(page.getByRole("heading", { name: "Borrador para eliminar", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Eliminar agente", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Salir", exact: true }).click();
-  await page.getByLabel("Token de acceso").fill(process.env.DEMO_CREATOR_TOKEN!);
+  await page.getByLabel("Token de acceso").fill(process.env.DEMO_ADMIN_TOKEN!);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await expect(page.getByRole("button", { name: "Eliminar agente", exact: true })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });

@@ -105,7 +105,11 @@ def seed_knowledge(session: Session, settings: Settings) -> int:
         found = create_version(
             session,
             agent,
-            VersionCreate(configuration=AgentConfiguration.model_validate(config)),
+            VersionCreate(
+                configuration=AgentConfiguration.model_validate(config),
+                source_version=base.number,
+                expected_source_revision=base.revision,
+            ),
             owner,
         )
         freeze_version(session, agent, found)

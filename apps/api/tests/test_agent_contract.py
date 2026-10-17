@@ -39,8 +39,20 @@ def test_generated_id_and_initial_configuration_contract(studio, db_engine):
     )
     versions_url = f"/api/v1/agents/{agent['id']}/versions"
     assert len(studio.get(versions_url, headers=auth()).json()) == 1
+    assert (
+        studio.post(
+            versions_url, headers=auth(), json={"source_version": 1, "expected_source_revision": 1}
+        ).status_code
+        == 409
+    )
+    assert (
+        studio.post(
+            reference + "/snapshot", headers=auth(), json={"expected_revision": 1}
+        ).status_code
+        == 200
+    )
     candidate = studio.post(
-        versions_url, headers=auth(), json={"source_version": 1, "expected_source_revision": 1}
+        versions_url, headers=auth(), json={"source_version": 1, "expected_source_revision": 2}
     )
     assert candidate.status_code == 201
     assert candidate.json()["number"] == 2
@@ -60,7 +72,8 @@ def test_generated_ids_are_unique_and_registration_remains_compatible(studio):
     ]
     assert agents[0]["id"] != agents[1]["id"]
     assert all(
-        agent["state"] == "DRAFT" and agent["initial_configuration"] is None for agent in agents
+        agent["state"] == "DRAFT" and agent["initial_configuration"].endswith("/versions/1")
+        for agent in agents
     )
     response = studio.post(
         "/api/v1/agents",

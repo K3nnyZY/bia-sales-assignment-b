@@ -190,7 +190,24 @@ def seed_runtime_data(
         None,
     )
     if version is None:
-        version = create_version(session, agent, VersionCreate(configuration=config), owner)
+        source = session.scalar(
+            select(AgentVersion)
+            .where(AgentVersion.agent_id == agent.id, AgentVersion.status == "snapshot")
+            .order_by(AgentVersion.number.desc())
+            .limit(1)
+        )
+        spec = VersionCreate(
+            configuration=config,
+            **(
+                {
+                    "source_version": source.number,
+                    "expected_source_revision": source.revision,
+                }
+                if source
+                else {}
+            ),
+        )
+        version = create_version(session, agent, spec, owner)
         freeze_version(session, agent, version)
     return version.number
 
