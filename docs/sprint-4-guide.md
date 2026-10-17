@@ -70,14 +70,16 @@ tokens revocados. Los contenedores continúan en segundo plano al cerrar Termina
    y abre sus trazas. Los rechazos de acceso son resultados esperados de las pruebas.
 5. Pulsa **Solicitar aprobación**: estado `pending_approval`. Creator no puede
    aprobar. Cierra sesión con **Salir** e introduce **DEMO_APPROVER_TOKEN** o
-   **DEMO_ADMIN_TOKEN** de un usuario independiente. En **Solicitudes e historial
+   **DEMO_ADMIN_TOKEN**. Approver debe ser independiente; Admin puede decidir
+   sobre cualquier candidata válida. En **Solicitudes e historial
    de aprobaciones**, pulsa **Revisar y aprobar** en la solicitud pendiente.
    Se seleccionan su agente y versión y se abre el panel **Revisión de aprobación**.
    Revisa los resultados y escribe **Motivo de decisión o rollback**; el motivo
    es obligatorio y la interfaz lo indica si el botón está deshabilitado. Después
    pulsa **Aprobar**. Estado `approved`. Pulsa **Publicar versión**: `published`.
-   El servidor rechaza que autor, propietario o solicitante aprueben su versión,
-   incluso si poseen rol administrador.
+   Con rol Approver, el servidor rechaza la decisión del autor, propietario o
+   solicitante. Admin puede aprobarla con motivo y auditoría, sin omitir evaluaciones
+   ni el gate del hash exacto. Requiere `0008_admin_approval`.
 6. Entra en **Playground** con **DEMO_CREATOR_TOKEN**. Selecciona tu agente/v1,
    canal **Published · versión aprobada**, modo determinista, consulta **Comparar
    con el mes anterior**, factura **INV-1002**, período **2026-09**. Ejecuta.
@@ -126,7 +128,7 @@ Todos requieren bearer token de identidad local activa. Swagger está en
 | Listar/ver resultados | `GET /evaluations`, `GET /evaluations/{id}` | Propietario o personal de gobernanza |
 | Ver gate y revisión | `GET /agents/{id}/versions/{n}/governance` | Propietario o personal de gobernanza |
 | Solicitar aprobación | `POST /agents/{id}/versions/{n}/submit` | Creator propietario/admin |
-| Aprobar/rechazar | `POST /agents/{id}/versions/{n}/approve` | Approver/admin independiente |
+| Aprobar/rechazar | `POST /agents/{id}/versions/{n}/approve` | Approver independiente o Admin |
 | Listar aprobaciones | `GET /approvals` | Propietario o personal de gobernanza |
 | Publicar/deshabilitar | `POST /agents/{id}/versions/{n}/publish`, `/disable` | Approver/admin |
 | Rollback | `POST /agents/{id}/rollback` | Approver/admin |

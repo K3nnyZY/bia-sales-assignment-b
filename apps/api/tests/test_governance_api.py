@@ -181,14 +181,14 @@ def test_exact_hash_stale_revision_and_transitions(governed):
     )
 
 
-def test_self_approval_blocked_even_for_administrator(governed, db_engine):
+def test_self_approval_blocked_for_approver(governed, db_engine):
     from app.identity.models import User
 
-    # Evaluate and request as owner, then elevate that same trusted principal in DB.
+    # A trusted role change does not let Approver decide on their own request.
     evaluate(governed)
     post(governed, BASE + "/submit", action(governed), status=201)
     with Session(db_engine) as session:
-        session.get(User, "demo-creator").role = "administrator"
+        session.get(User, "demo-creator").role = "approver"
         session.commit()
     result = post(
         governed,

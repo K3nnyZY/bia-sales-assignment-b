@@ -24,7 +24,7 @@ y Agent Runtime de [la arquitectura](docs/architecture.md). LangGraph ejecuta
 un billing-assistant con facturas sintéticas, autorización por cliente,
 cálculos Decimal, tarifas/FAQ aprobadas y trazas persistidas. Incluye Playground
 y gateway LiteLLM opcional. Sprint 4 añade evaluaciones versionadas, aprobación
-independiente, publicación con gate de hash exacto, rollback y observabilidad.
+autorizada, publicación con gate de hash exacto, rollback y observabilidad.
 Sprint 5 integra colecciones/documentos versionados, ingesta PDF/TXT/Markdown,
 embeddings semánticos locales, pgvector y búsqueda híbrida con filtros de permisos
 y vigencia, citas verificables y trazas. Consulta la [guía del Sprint 5](docs/sprint-5-guide.md),
@@ -314,8 +314,11 @@ Para una solicitud `pending`, entra como Admin o Approver y abre
 **Evaluaciones → Solicitudes e historial de aprobaciones → Revisar y aprobar**.
 La interfaz selecciona el agente y la versión exactos y abre el panel de revisión.
 Completa **Motivo de decisión o rollback** para habilitar **Aprobar**. Los mensajes
-del panel explican los bloqueos; la autorización y la separación de funciones
-siguen verificándose en backend, incluso para Admin.
+del panel explican los bloqueos. **Admin puede aprobar cualquier candidata válida,
+incluidas las propias**, dejando motivo y excepción en auditoría. Approver debe
+ser independiente del propietario, autor y solicitante. Ambos requieren evaluación
+válida del hash exacto y ningún fallo crítico. Esta política requiere la migración
+`0008_admin_approval`; consulta [reglas y pruebas](docs/admin-approval-policy.md).
 
 ```sh
 make demo-env

@@ -41,6 +41,15 @@ Logical deletion reserves its ID and preserves all audit/version relations.
 Governance and publication still operate exclusively on immutable snapshots.
 See [lifecycle contract and migration](agent-lifecycle.md).
 
+**Administrator approval policy update (2026-10-16):** an authenticated active
+administrator may decide on any valid pending candidate, including a version
+they own, authored or requested. Approvers retain the independence requirement.
+An exact-hash passing evaluation, critical-failure gate, reason, revision checks,
+immutable snapshots and audit trail remain mandatory. API and PostgreSQL enforce
+the same policy; audit events identify administrator self-decisions. This explicit
+operator-authorized change requires `0008_admin_approval`. See
+[policy and verification](admin-approval-policy.md).
+
 **Deployment preparation (2026-10-16):** an optional private access-token mode
 now authenticates operator-issued 256-bit credentials through SHA-256 hashes,
 expiry and revocation in PostgreSQL. Legacy demo tokens remain development-only

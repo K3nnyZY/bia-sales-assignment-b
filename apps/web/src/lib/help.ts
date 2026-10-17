@@ -4,8 +4,8 @@ export const helpCatalog = {
   Tools: "Las herramientas consultan recursos mediante contratos aprobados. El backend comprueba los permisos del propietario, del solicitante y del recurso; seleccionarlas no concede permisos.",
   Workflow: "Secuencia de pasos y decisiones que ejecuta el agente. Billing StateGraph consulta facturas mediante herramientas y calcula diferencias con Python.",
   Snapshot: "Copia inmutable de una configuración y sus referencias exactas. Permite evaluar siempre el mismo contenido; no equivale a aprobación ni publicación. Para cambiarla, crea otra versión.",
-  Evaluation: "Una suite versionada comprueba comportamiento y seguridad sobre el hash exacto del snapshot. Superar una evaluación no elimina la necesidad de aprobación independiente.",
-  Approval: "Decisión registrada por un aprobador autorizado e independiente del propietario, autor y solicitante. No puedes aprobar tu propia candidata.",
+  Evaluation: "Una suite versionada comprueba comportamiento y seguridad sobre el hash exacto del snapshot. Superar una evaluación no elimina la necesidad de aprobación autorizada.",
+  Approval: "Admin puede aprobar cualquier agente, incluidos los propios, con motivo y auditoría. Approver debe ser independiente del propietario, autor y solicitante. Ambos requieren evaluaciones válidas del snapshot exacto.",
   "Publication Gate": "Control del backend que comprueba configuración, dependencias, evaluaciones y aprobación antes de publicar. Un fallo crítico bloquea la publicación.",
   Runtime: "Motor que ejecuta la versión autorizada mediante LangGraph, aplica límites y permisos y persiste el resultado. El modo proveedor puede consumir cuota; el determinista no llama a un LLM.",
   Trace: "Registro persistido de una ejecución: pasos, herramientas, referencias, tiempos y errores. Su consulta está limitada por los permisos del backend.",
@@ -27,10 +27,11 @@ export const errorGuidance: Record<string, string> = {
   MODEL_LIMIT: "Reduce los tokens de salida al límite del modelo seleccionado.",
   MODEL_CAPABILITY: "Selecciona un modelo compatible con todas las capacidades requeridas.",
   CONFIG_HASH_MISMATCH: "Recarga la versión: el hash solicitado no corresponde a la configuración congelada.",
+  SELF_APPROVAL_FORBIDDEN: "Con rol Approver necesitas una persona independiente. Solicita la decisión de otro Approver o de un Admin.",
 };
 
 export const gateGuidance: Record<string, string> = {
   INVALID_OR_REVOKED_CONFIGURATION: "La configuración no es válida actualmente. Revisa modelo, herramientas, workflow, permisos y referencias de conocimiento. Este código no identifica cuál falló.",
   EVALUATION_REQUIRED: "Ejecuta una suite válida sobre este snapshot antes de continuar.",
-  APPROVAL_REQUIRED: "Solicita una aprobación y pide la decisión de un aprobador independiente.",
+  APPROVAL_REQUIRED: "Solicita una aprobación y pide la decisión de Admin o de un Approver independiente.",
 };

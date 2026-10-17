@@ -102,7 +102,7 @@ class Approval(Base):
         CheckConstraint(
             "(status = 'pending' AND decided_by IS NULL AND decided_at IS NULL) OR "
             "(status <> 'pending' AND decided_by IS NOT NULL "
-            "AND decided_at IS NOT NULL AND decided_by <> requested_by)",
+            "AND decided_at IS NOT NULL)",
             name="decision",
         ),
     )

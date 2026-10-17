@@ -102,7 +102,7 @@ Revisa el manifiesto localmente antes de aplicarlo. Declara siete identidades:
 Los nombres `demo-*` son IDs sintéticos, no tokens ni autenticación de desarrollo.
 También se provisionan tres principales internos de evaluación, con scopes
 sintéticos y **sin tokens de acceso**. La operación no permite permisos de
-escritura, roles arbitrarios o autoaprobación. Solo un operador con acceso al
+escritura, roles arbitrarios ni aprobaciones automáticas. Solo un operador con acceso al
 contenedor/base puede ejecutarla; no hay endpoint público para bootstrap.
 
 ## 3. Provisionar identidades explícitamente
@@ -201,7 +201,9 @@ python3 -c 'import json; print(json.load(open(".tools/railway-demo-access/railwa
    `billing-runtime` v1, modo **Determinista**. Revisa los nueve resultados reales
    y solicita aprobación únicamente cuando pasen.
 6. Entra como `approver`, revisa, registra el motivo, aprueba y publica. El creador
-   no puede autoaprobarse; ningún paso anterior publica automáticamente.
+   con rol creator no puede autoaprobarse. Con `0008_admin_approval`, Admin puede
+   aprobar cualquier candidata válida, incluida una propia, con motivo y auditoría.
+   Ningún paso anterior publica automáticamente.
 7. Entra como creador. En **Playground**, selecciona **Published**, factura
    `INV-1002`, tarea comparar, período `2026-09`. Debe mostrar diferencia de
    **64.400 COP**, **23 %**, citas documentales y traza LangGraph con herramientas

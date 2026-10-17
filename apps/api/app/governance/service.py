@@ -164,11 +164,13 @@ def decide(
     if agent.status != "draft" or item.stage != "pending_approval" or not item.approval_id:
         fail(409, "INVALID_TRANSITION", "A pending approval is required")
     approval = session.get(Approval, item.approval_id)
-    if user.id in {agent.owner_id, version.created_by, approval.requested_by}:
+    self_decision = user.id in {agent.owner_id, version.created_by, approval.requested_by}
+    if user.role != "administrator" and self_decision:
         fail(
             403,
             "SELF_APPROVAL_FORBIDDEN",
-            "The author, owner and requester cannot approve their own version",
+            "Approvers cannot decide on a version they authored, own or requested; "
+            "an administrator may decide with an audited reason",
         )
     if data.decision == "approved":
         require_gate(session, version)
@@ -190,6 +192,8 @@ def decide(
         evaluation_id=approval.evaluation_id,
         config_hash=version.config_hash,
         reason=data.reason,
+        decision_role=user.role,
+        administrator_override=user.role == "administrator" and self_decision,
     )
     session.commit()
     return approval

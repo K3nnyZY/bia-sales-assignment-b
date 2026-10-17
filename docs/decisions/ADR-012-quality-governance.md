@@ -5,7 +5,7 @@ Estado: implementado para demo local en Sprint 4 (2026-10-15).
 ## Contexto y decisión
 
 Se conserva el monolito modular, el StateGraph real y los contratos de Sprints
-1–3. `governance/` incorpora suites, evaluaciones, aprobación independiente,
+1–3. `governance/` incorpora suites, evaluaciones, aprobación autorizada,
 publicación transaccional, rollback, auditoría y consultas de observabilidad.
 No se añaden servicios, dependencias, graders LLM ni funcionalidades de Sprint 5.
 
@@ -62,9 +62,20 @@ bloquea el gate. No hay fallback ni consumo de proveedor en verify/CI.
 Creator propietario, administrator o reviewer pueden evaluar; las solicitudes
 las presenta el propietario creator o administrator. Solo approver/administrator
 pueden decidir, publicar, deshabilitar o volver a una publicación anterior.
-Ni propietario, autor del snapshot ni solicitante pueden aprobarlo, incluso
-si tienen rol administrator. El motivo y actor quedan auditados. Una decisión
+Con rol approver, ni propietario, autor del snapshot ni solicitante pueden
+aprobarlo. Por instrucción explícita del propietario del proyecto, administrator
+puede decidir sobre cualquier candidata, incluidas las propias. La excepción
+solo afecta a la separación de funciones: requiere motivo y registra
+`decision_role` y `administrator_override` en el evento de auditoría. No exime
+hash exacto, evaluación válida, ausencia de fallos críticos ni transiciones de
+estado. Se aplica tanto en backend como en el trigger PostgreSQL. Una decisión
 es final; reevaluar y volver a solicitar crea otra aprobación.
+
+La migración `0008_admin_approval` sustituye la restricción que exigía siempre
+solicitante distinto. El trigger exige esa separación a approver y comprueba el
+rol activo en base de datos. No se modifican snapshots ni decisiones anteriores.
+La política nueva permite autoaprobación administrativa; el control de dos
+personas sigue vigente para Approver. Ver [alcance y pruebas](../admin-approval-policy.md).
 
 La publicación concede al propietario únicamente invocación sobre esa versión,
 sin conceder permisos de negocio ni reactivar un grant previamente revocado.

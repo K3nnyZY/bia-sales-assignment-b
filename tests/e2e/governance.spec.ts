@@ -24,6 +24,7 @@ test(`configure, evaluate, approve as ${decisionRole}, publish, execute and audi
   test.setTimeout(90000);
   page.setDefaultTimeout(10000);
   const id = `e2e-quality-${Date.now()}`;
+  const candidateNumber = decisionRole === "ADMIN" ? 2 : 1;
   await login(page, "CREATOR", "/agents");
   await page.getByLabel("Identificador", { exact: true }).fill(id);
   await page.getByLabel("Nombre", { exact: true }).fill("E2E Governed Billing");
@@ -56,6 +57,14 @@ test(`configure, evaluate, approve as ${decisionRole}, publish, execute and audi
   await expect(
     page.getByRole("heading", { name: "Versión 1 · snapshot", exact: true }),
   ).toBeVisible();
+  if (decisionRole === "ADMIN") {
+    // Same Admin authors and requests v2, then approves it; owner permissions stay intact.
+    await login(page, "ADMIN", `/agents/${id}`);
+    await page.getByRole("button", { name: "Nueva versión desde esta", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Versión 2 · draft", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Crear snapshot", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Versión 2 · snapshot", exact: true })).toBeVisible();
+  }
   await page.getByRole("link", { name: "Evaluaciones", exact: true }).click();
   await page.getByLabel("Agente", { exact: true }).selectOption(id);
   await page
@@ -85,8 +94,12 @@ test(`configure, evaluate, approve as ${decisionRole}, publish, execute and audi
   await expect(
     page.getByRole("button", { name: "Aprobar", exact: true }),
   ).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Revisar y aprobar", exact: true })).toHaveCount(0);
-  await expect(page.locator("#approval-action-hint")).toContainText("Admin o Approver");
+  if (decisionRole === "APPROVER") {
+    await expect(page.getByRole("button", { name: "Revisar y aprobar", exact: true })).toHaveCount(0);
+    await expect(page.locator("#approval-action-hint")).toContainText("Admin o Approver");
+  } else {
+    await expect(page.locator("#approval-action-hint")).toContainText("Escribe un motivo");
+  }
   await page.getByRole("button", { name: "Salir", exact: true }).click();
   await page
     .getByLabel("Token de acceso")
@@ -95,11 +108,11 @@ test(`configure, evaluate, approve as ${decisionRole}, publish, execute and audi
   // Open the request from the history while a different agent is selected.
   await page.getByLabel("Agente", { exact: true }).selectOption("billing-assistant");
   const pendingRequest = page.locator("article").filter({
-    has: page.getByRole("heading", { name: `${id} · v1 · pending`, exact: true }),
+    has: page.getByRole("heading", { name: `${id} · v${candidateNumber} · pending`, exact: true }),
   });
   await pendingRequest.getByRole("button", { name: "Revisar y aprobar", exact: true }).click();
   await expect(page.getByLabel("Agente", { exact: true })).toHaveValue(id);
-  await expect(page.getByLabel("Versión", { exact: true })).toHaveValue("1");
+  await expect(page.getByLabel("Versión", { exact: true })).toHaveValue(String(candidateNumber));
   await expect(page.getByTestId("governance-stage")).toHaveText("pending_approval");
   await expect(page.getByRole("heading", { name: "Revisión de aprobación", exact: true })).toBeVisible();
   await expect(page.locator("#approval-action-hint")).toContainText("Escribe un motivo");
@@ -107,6 +120,9 @@ test(`configure, evaluate, approve as ${decisionRole}, publish, execute and audi
   await page
     .getByLabel("Motivo de decisión o rollback")
     .fill("Revisados los nueve resultados y trazas sintéticas");
+  if (decisionRole === "ADMIN") {
+    await expect(page.locator("#approval-action-hint")).toContainText("Como Admin puedes decidir sobre cualquier agente");
+  }
   await expect(page.getByRole("button", { name: "Aprobar", exact: true })).toBeEnabled();
   await page.getByRole("button", { name: "Aprobar", exact: true }).click();
   await expect(page.getByTestId("governance-stage")).toHaveText("approved");
@@ -115,7 +131,7 @@ test(`configure, evaluate, approve as ${decisionRole}, publish, execute and audi
     .click();
   await expect(page.getByTestId("governance-stage")).toHaveText("published");
   await login(page, "CREATOR", "/playground");
-  await page.getByLabel("Versión del agente").selectOption(`${id}@1`);
+  await page.getByLabel("Versión del agente").selectOption(`${id}@${candidateNumber}`);
   await page.getByLabel("Canal de ejecución").selectOption("published");
   await page.getByLabel("Consulta").selectOption("compare");
   await page
@@ -171,8 +187,13 @@ test(`configure, evaluate, approve as ${decisionRole}, publish, execute and audi
     },
   );
   expect(history.status()).toBe(200);
+  const recordedEvents = await history.json();
+  const approvalEvent = recordedEvents.find((e: { action: string; version_number: number }) =>
+    e.action === "approval.approved" && e.version_number === candidateNumber);
+  expect(approvalEvent.details.administrator_override).toBe(decisionRole === "ADMIN");
+  expect(approvalEvent.details.decision_role).toBe(decisionRole === "ADMIN" ? "administrator" : "approver");
   expect(
-    (await history.json()).some(
+    recordedEvents.some(
       (e: { action: string; agent_id: string }) =>
         e.action === "agent.created" && e.agent_id === id,
     ),

@@ -68,7 +68,9 @@ function EvaluationCenter() {
       ? "Selecciona una solicitud pendiente del historial. La versión debe estar en pending_approval."
       : !reason.trim()
         ? "Escribe un motivo de decisión para habilitar Aprobar y Rechazar."
-        : "Puedes registrar la decisión. El backend verificará que seas un aprobador independiente.";
+        : user?.role === "administrator"
+          ? "Como Admin puedes decidir sobre cualquier agente, incluidos los propios. El motivo y la excepción quedan auditados."
+          : "Puedes registrar la decisión. El backend verificará que seas un aprobador independiente.";
   function reviewApproval(approval: Approval) {
     setAgentId(approval.agent_id);
     setNumber(approval.version_number);
@@ -155,7 +157,7 @@ function EvaluationCenter() {
         <h1>Evaluation Center.</h1>
         <ContextHelp term="Evaluation" />
         <p>
-          Evalúa un snapshot exacto, solicita revisión independiente y publica
+          Evalúa un snapshot exacto, solicita una aprobación y publica
           una versión autorizada.
         </p>
         <p className="notice">
@@ -412,8 +414,10 @@ function EvaluationCenter() {
                 </button>
               </div>
               <p className="hint">
-                El backend rechaza la autoaprobación y vuelve a validar
-                permisos, hash, suite, modelo, herramientas y revisión vigente.
+                Admin puede aprobar agentes propios con motivo y auditoría.
+                Approver debe ser independiente del propietario, autor y
+                solicitante. El backend vuelve a validar permisos, hash, suite,
+                modelo, herramientas y revisión vigente.
               </p>
               <ContextHelp term="Approval" />
             </>
