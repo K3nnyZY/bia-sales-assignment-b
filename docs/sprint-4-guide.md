@@ -62,15 +62,19 @@ tokens revocados. Los contenedores continúan en segundo plano al cerrar Termina
    **search_billing_knowledge v1.0.0**. No selecciones los contratos antiguos de
    invoice v1/v2, que no tienen adaptadores de runtime.
 3. Usa **12 pasos**, **5 llamadas**, **30 segundos**, y un límite de salida
-   compatible (1000 tokens sirve). Pulsa **Crear primera versión**, después
+   compatible (1000 tokens sirve). El alta ya creó v1 editable. Pulsa **Guardar borrador**, después
    **Crear snapshot**. La versión y su SHA-256 quedan inmutables.
 4. En **Evaluaciones**, selecciona tu agente y v1, la suite **Billing runtime and
    security baseline v1** y modo **Determinista · sin LLM**. Pulsa **Evaluar versión**.
    Espera el resultado; los nueve escenarios deben pasar. Inspecciona cada resultado
    y abre sus trazas. Los rechazos de acceso son resultados esperados de las pruebas.
 5. Pulsa **Solicitar aprobación**: estado `pending_approval`. Creator no puede
-   aprobar. Cierra sesión con **Salir** e introduce **DEMO_APPROVER_TOKEN**.
-   Selecciona otra vez tu agente/v1, revisa los resultados, escribe un motivo y
+   aprobar. Cierra sesión con **Salir** e introduce **DEMO_APPROVER_TOKEN** o
+   **DEMO_ADMIN_TOKEN** de un usuario independiente. En **Solicitudes e historial
+   de aprobaciones**, pulsa **Revisar y aprobar** en la solicitud pendiente.
+   Se seleccionan su agente y versión y se abre el panel **Revisión de aprobación**.
+   Revisa los resultados y escribe **Motivo de decisión o rollback**; el motivo
+   es obligatorio y la interfaz lo indica si el botón está deshabilitado. Después
    pulsa **Aprobar**. Estado `approved`. Pulsa **Publicar versión**: `published`.
    El servidor rechaza que autor, propietario o solicitante aprueben su versión,
    incluso si poseen rol administrador.

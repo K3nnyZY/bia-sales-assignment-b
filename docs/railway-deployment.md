@@ -98,6 +98,28 @@ El predeploy ejecuta `scripts/railway-predeploy.sh`: únicamente Alembic
 provisionan manualmente mediante la [guía de bootstrap](production-demo-bootstrap.md),
 en operaciones separadas y explícitas. No se copia tu `.env` local ni se renuevan
 credenciales o grants al desplegar.
+
+Si conectas el repositorio manualmente desde el dashboard de Railway, ese paso
+no aplica automáticamente `infra/railway/railway.ts`. En el servicio backend,
+configura explícitamente **Pre-deploy Command** como
+`sh scripts/railway-predeploy.sh` y **Healthcheck Path** como `/health/ready`.
+Comprueba que la respuesta indique `database: ok` y `migrations: ok` después
+del despliegue. Un build exitoso sin migraciones puede producir HTTP 500 al
+consultar columnas nuevas; por ejemplo, `agents.deleted_at` requiere
+`0007_agent_lifecycle`. No ejecutes seeds ni habilites autenticación de desarrollo
+para corregir un desfase del esquema.
+
+La incidencia de `agents.deleted_at` se corrigió en el despliegue manual el
+2026-10-16: servicio `backend`, commit
+`fb950a219b7a5061c608cae1b96facca451946e0`, deployment
+`9da2df44-68a8-4ad4-ad29-ade15e2335f1`. Se aplicaron esos ajustes y se desplegó
+el commit exacto con la configuración actual. Un primer redeploy de la imagen
+anterior había conservado el manifiesto sin Pre-deploy; ese redeploy por sí solo
+no resolvió el desfase. La comprobación final devolvió HTTP 200 con migraciones
+`ok` en backend y proxy del frontend; `/agents` devolvió HTTP 200 y las APIs de
+agentes sin token devolvieron HTTP 401. No se verificó una creación autenticada
+porque no había un token de la plataforma disponible para esa comprobación.
+
 Los archivos de acceso de `.tools/` generados al preparar infraestructura no se
 registran automáticamente; utiliza las credenciales del subdirectorio
 `.tools/railway-demo-access/` que aprovisiones siguiendo esa guía.

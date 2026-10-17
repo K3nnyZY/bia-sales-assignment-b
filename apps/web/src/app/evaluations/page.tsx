@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ContextHelp } from "../../components/help";
 import { checkMetadata, checkObservations, checkStatus } from "../../lib/evaluation-checks";
 import { gateGuidance } from "../../lib/help";
@@ -48,6 +48,7 @@ function EvaluationCenter() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const decisionPanel = useRef<HTMLElement>(null);
   const state = governance.data;
   const selectedAgent = agents.data?.find((a) => a.id === agentId);
   const canEvaluate =
@@ -60,6 +61,24 @@ function EvaluationCenter() {
     (user.role === "administrator" ||
       (user.role === "creator" && selectedAgent?.owner_id === user.id));
   const canApprove = user && ["administrator", "approver"].includes(user.role);
+  const pendingApprovals = approvals.data?.filter((a) => a.status === "pending") || [];
+  const approvalHint = !canApprove
+    ? "La aprobación requiere un usuario con rol Admin o Approver."
+    : state?.stage !== "pending_approval"
+      ? "Selecciona una solicitud pendiente del historial. La versión debe estar en pending_approval."
+      : !reason.trim()
+        ? "Escribe un motivo de decisión para habilitar Aprobar y Rechazar."
+        : "Puedes registrar la decisión. El backend verificará que seas un aprobador independiente.";
+  function reviewApproval(approval: Approval) {
+    setAgentId(approval.agent_id);
+    setNumber(approval.version_number);
+    setReason("");
+    setError("");
+    setSuccess("");
+    governance.refresh();
+    decisionPanel.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    decisionPanel.current?.focus({ preventScroll: true });
+  }
   async function perform(operation: string) {
     if (!base || !state || busy) return;
     setBusy(true);
@@ -158,6 +177,13 @@ function EvaluationCenter() {
         }
         success={success}
       />
+      {canApprove && pendingApprovals.length > 0 && (
+        <p className="notice">
+          En este historial hay {pendingApprovals.length} solicitudes pendientes. Abre{" "}
+          <a href="#approval-history">Solicitudes e historial de aprobaciones</a>{" "}
+          y pulsa Revisar y aprobar en la versión que quieras revisar.
+        </p>
+      )}
       <div className="workspace detail">
         <aside>
           <section className="panel">
@@ -262,8 +288,13 @@ function EvaluationCenter() {
             </button>
           </section>
         </aside>
-        <section className="panel">
-          <h2>Publication Gate</h2>
+        <section
+          className="panel"
+          ref={decisionPanel}
+          tabIndex={-1}
+          aria-labelledby="publication-gate-title"
+        >
+          <h2 id="publication-gate-title">Publication Gate</h2>
           <ContextHelp term="Publication Gate" />
           {!state && !governance.error && (
             <p role="status">Selecciona una versión; cargando gobernanza…</p>
@@ -325,14 +356,23 @@ function EvaluationCenter() {
                   Deshabilitar versión
                 </button>
               </div>
+              <h3>Revisión de aprobación</h3>
+              <p>
+                {selectedAgent?.name || agentId} · v{version?.number}. La decisión
+                se registra sobre el hash de configuración mostrado arriba.
+              </p>
               <label>
                 Motivo de decisión o rollback
                 <textarea
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   maxLength={2000}
+                  aria-describedby="approval-action-hint"
                 />
               </label>
+              <p className="hint" id="approval-action-hint" role="status">
+                {busy ? "Procesando la operación…" : approvalHint}
+              </p>
               <div className="actions">
                 <button
                   disabled={
@@ -495,8 +535,8 @@ function EvaluationCenter() {
           </div>
         </section>
       )}
-      <section className="panel">
-        <h2>Historial de aprobaciones</h2>
+      <section className="panel" id="approval-history">
+        <h2>Solicitudes e historial de aprobaciones</h2>
         {approvals.data?.length === 0 && <p>No hay solicitudes visibles.</p>}
         {approvals.data?.map((a) => (
           <article className="catalog-item" key={a.id}>
@@ -508,6 +548,11 @@ function EvaluationCenter() {
               {a.decided_by || "Pendiente"}
             </p>
             <p>{a.reason}</p>
+            {a.status === "pending" && canApprove && (
+              <button disabled={busy} onClick={() => reviewApproval(a)}>
+                Revisar y aprobar
+              </button>
+            )}
           </article>
         ))}
       </section>

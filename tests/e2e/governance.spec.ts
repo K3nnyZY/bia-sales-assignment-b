@@ -4,7 +4,7 @@ import type { RunTrace } from "../../apps/web/src/lib/runtime";
 
 async function login(
   page: Page,
-  role: "CREATOR" | "APPROVER" | "AUDITOR" | "VIEWER",
+  role: "CREATOR" | "ADMIN" | "APPROVER" | "AUDITOR" | "VIEWER",
   path: string,
 ) {
   await page.goto(path);
@@ -17,7 +17,8 @@ async function login(
   ).toBeVisible();
 }
 
-test("configure, evaluate, independently approve, publish, execute and audit", async ({
+for (const decisionRole of ["ADMIN", "APPROVER"] as const) {
+test(`configure, evaluate, approve as ${decisionRole}, publish, execute and audit`, async ({
   page,
 }, testInfo) => {
   test.setTimeout(90000);
@@ -84,18 +85,29 @@ test("configure, evaluate, independently approve, publish, execute and audit", a
   await expect(
     page.getByRole("button", { name: "Aprobar", exact: true }),
   ).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Revisar y aprobar", exact: true })).toHaveCount(0);
+  await expect(page.locator("#approval-action-hint")).toContainText("Admin o Approver");
   await page.getByRole("button", { name: "Salir", exact: true }).click();
   await page
     .getByLabel("Token de acceso")
-    .fill(process.env.DEMO_APPROVER_TOKEN!);
+    .fill(process.env[`DEMO_${decisionRole}_TOKEN`]!);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
-  await page.getByLabel("Agente", { exact: true }).selectOption(id);
-  await expect(page.getByTestId("governance-stage")).toHaveText(
-    "pending_approval",
-  );
+  // Open the request from the history while a different agent is selected.
+  await page.getByLabel("Agente", { exact: true }).selectOption("billing-assistant");
+  const pendingRequest = page.locator("article").filter({
+    has: page.getByRole("heading", { name: `${id} · v1 · pending`, exact: true }),
+  });
+  await pendingRequest.getByRole("button", { name: "Revisar y aprobar", exact: true }).click();
+  await expect(page.getByLabel("Agente", { exact: true })).toHaveValue(id);
+  await expect(page.getByLabel("Versión", { exact: true })).toHaveValue("1");
+  await expect(page.getByTestId("governance-stage")).toHaveText("pending_approval");
+  await expect(page.getByRole("heading", { name: "Revisión de aprobación", exact: true })).toBeVisible();
+  await expect(page.locator("#approval-action-hint")).toContainText("Escribe un motivo");
+  await expect(page.getByRole("button", { name: "Aprobar", exact: true })).toBeDisabled();
   await page
     .getByLabel("Motivo de decisión o rollback")
     .fill("Revisados los nueve resultados y trazas sintéticas");
+  await expect(page.getByRole("button", { name: "Aprobar", exact: true })).toBeEnabled();
   await page.getByRole("button", { name: "Aprobar", exact: true }).click();
   await expect(page.getByTestId("governance-stage")).toHaveText("approved");
   await page
@@ -189,6 +201,8 @@ test("configure, evaluate, independently approve, publish, execute and audit", a
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await expect(page.locator(".runtime-answer")).toContainText("64400.00 COP");
 });
+
+}
 
 test("metadata history survives empty-agent deletion and remains scoped in Next.js", async ({
   page,

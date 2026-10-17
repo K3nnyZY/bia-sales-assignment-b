@@ -310,6 +310,13 @@ No se registran ni aprueban modelos automáticamente al ejecutar el smoke.
 La [guía paso a paso](docs/sprint-4-guide.md) documenta roles, endpoints,
 contratos, pruebas de seguridad, publicación, rollback y uso del Trace Viewer.
 
+Para una solicitud `pending`, entra como Admin o Approver y abre
+**Evaluaciones → Solicitudes e historial de aprobaciones → Revisar y aprobar**.
+La interfaz selecciona el agente y la versión exactos y abre el panel de revisión.
+Completa **Motivo de decisión o rollback** para habilitar **Aprobar**. Los mensajes
+del panel explican los bloqueos; la autorización y la separación de funciones
+siguen verificándose en backend, incluso para Admin.
+
 ```sh
 make demo-env
 make governance-seed
